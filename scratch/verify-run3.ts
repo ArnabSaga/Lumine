@@ -96,6 +96,33 @@ function expectStatus(label: string, res: Response, expected: number) {
   }
 }
 
+// Intentionally mirrors the production UTC+6 day/week semantics from
+// lib/shared/date-metrics.ts. Duplicated (not imported) because test scripts
+// must not import lib/server/* (server-only boundary).
+const BANGLADESH_UTC_OFFSET_MS = 6 * 60 * 60 * 1000;
+
+function bdtDayRange(now: Date): { start: Date; end: Date } {
+  const shifted = new Date(now.getTime() + BANGLADESH_UTC_OFFSET_MS);
+  const start = new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()) - BANGLADESH_UTC_OFFSET_MS);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end };
+}
+
+async function metricValue(html: string, id: string): Promise<number> {
+  const match = html.match(new RegExp(`data-metric="${id}"[^>]*>\\s*([\\d,]+)`));
+  if (!match) {
+    throw new Error(`Metric anchor data-metric="${id}" not found in dashboard HTML.`);
+  }
+  return Number(match[1].replace(/,/g, ""));
+}
+
+async function expectMetric(label: string, html: string, id: string, expected: number) {
+  const actual = await metricValue(html, id);
+  if (actual !== expected) {
+    throw new Error(`Metric ${label} (data-metric="${id}"): expected ${expected}, rendered ${actual}.`);
+  }
+}
+
 function assertNoSensitiveFields(label: string, payload: unknown) {
   const text = JSON.stringify(payload);
   const forbidden = [
@@ -203,6 +230,16 @@ async function run() {
     };
     const fixtureStart = new Date(Date.now() - 10 * 60 * 1000);
     const at = (seconds: number) => new Date(fixtureStart.getTime() + seconds * 1000);
+    // Single shared timestamp: proves deterministic ordering under exact ties.
+    const tieCreatedAt = at(50);
+    // (student, course) pairs chosen to avoid the studentId+courseId unique constraint.
+    const tiePairs = [
+      { student: extraStudents[0], course: courses[0] },
+      { student: extraStudents[1], course: courses[0] },
+      { student: extraStudents[2], course: courses[1] },
+      { student: extraStudents[3], course: courses[1] },
+      { student: extraStudents[4], course: courses[2] },
+    ];
 
     const enrollments = [
       {
@@ -260,6 +297,16 @@ async function run() {
         currencyAtEnrollment: courses[index % courses.length].currency,
         status: EnrollmentStatus.PENDING_PAYMENT,
         createdAt: at(10 + index),
+      })),
+      ...tiePairs.map((pair, index) => ({
+        id: `${runId}-tie-${index}`,
+        reference: `R3TIE-${runId}-${index}`,
+        studentId: pair.student.id,
+        courseId: pair.course.id,
+        priceAtEnrollment: pair.course.price,
+        currencyAtEnrollment: pair.course.currency,
+        status: EnrollmentStatus.PENDING_PAYMENT,
+        createdAt: tieCreatedAt,
       })),
     ];
 
@@ -331,6 +378,12 @@ async function run() {
             toStatus: EnrollmentStatus.PENDING_PAYMENT,
             createdAt: enrollment.createdAt,
           })),
+        ...tiePairs.map((_pair, index) => ({
+          enrollmentId: `${runId}-tie-${index}`,
+          fromStatus: null,
+          toStatus: EnrollmentStatus.PENDING_PAYMENT,
+          createdAt: tieCreatedAt,
+        })),
       ],
     });
 
@@ -416,18 +469,65 @@ async function run() {
     }
     console.log("  ✓ Search and filters work together.\n");
 
-    console.log("4. Pagination and sorting...");
+    console.log("4. Pagination, deterministic ordering, and overflow...");
+    // Expected staff-list order per the frozen convention:
+    // createdAt DESC, id DESC (id is a tie-breaker only).
+    const orderProbes: Array<{ id: string; createdAt: Date }> = [
+      { id: special.pending, createdAt: at(1) },
+      { id: special.verified, createdAt: at(2) },
+      { id: special.approvedT1, createdAt: at(3) },
+      { id: special.approvedT2, createdAt: at(4) },
+      ...extraStudents.slice(3).map((student, index) => ({
+        id: `${runId}-page-${index}`,
+        createdAt: at(10 + index),
+      })),
+      ...tiePairs.map((_pair, index) => ({ id: `${runId}-tie-${index}`, createdAt: tieCreatedAt })),
+    ];
+    const expectedOrder = [...orderProbes]
+      .sort(
+        (a, b) =>
+          b.createdAt.getTime() - a.createdAt.getTime() || (b.id > a.id ? 1 : b.id < a.id ? -1 : 0)
+      )
+      .map((probe) => probe.id);
+
+    const collected: string[] = [];
+    let currentPage = 1;
+    for (;;) {
+      const res = await fetchStaffList(bdmCookie, new URLSearchParams({ q: runId, page: String(currentPage) }));
+      if (!res.ok) throw new Error(`Staff list page ${currentPage} failed with ${res.status}.`);
+      const data = (await res.json()) as StaffListResponse;
+      collected.push(...data.items.map((item) => item.id));
+      if (data.items.length < data.pageSize) break;
+      currentPage++;
+      if (currentPage > 10) throw new Error("Pagination did not terminate.");
+    }
+
+    if (collected.length !== expectedOrder.length) {
+      throw new Error(`Expected ${expectedOrder.length} fixture rows across pages, collected ${collected.length}.`);
+    }
+    if (new Set(collected).size !== collected.length) {
+      throw new Error("Pagination duplicated records across pages.");
+    }
+    if (collected.join("|") !== expectedOrder.join("|")) {
+      throw new Error("Staff list order is not the frozen createdAt DESC, id DESC sequence.");
+    }
+    // Equal-timestamp subset must follow id DESC exactly (no duplication, no skips).
+    const tieOrder = collected.filter((id) => id.startsWith(`${runId}-tie-`));
+    const expectedTieOrder = tiePairs.map((_pair, index) => `${runId}-tie-${index}`).sort((a, b) => (b > a ? 1 : -1));
+    if (tieOrder.join("|") !== expectedTieOrder.join("|")) {
+      throw new Error(`Equal-timestamp ordering violated: ${tieOrder.join(", ")}.`);
+    }
+
     const page1 = (await (await fetchStaffList(bdmCookie, new URLSearchParams({ q: runId, page: "1" }))).json()) as StaffListResponse;
-    const page2 = (await (await fetchStaffList(bdmCookie, new URLSearchParams({ q: runId, page: "2" }))).json()) as StaffListResponse;
-    const page1Ids = new Set(page1.items.map((item) => item.id));
-    if (page2.items.some((item) => page1Ids.has(item.id))) {
-      throw new Error("Pagination page 1 and page 2 duplicated records.");
+
+    // Overflow page: empty items, honest page metadata (backend contract).
+    const overflow = (await (
+      await fetchStaffList(bdmCookie, new URLSearchParams({ q: runId, page: "99" }))
+    ).json()) as StaffListResponse;
+    if (overflow.items.length !== 0 || overflow.page !== 99 || overflow.totalPages < 1) {
+      throw new Error("Overflow page did not return the expected empty result.");
     }
-    const sorted = [...page1.items].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-    if (page1.items.map((item) => item.id).join("|") !== sorted.map((item) => item.id).join("|")) {
-      throw new Error("Staff list sorting is not deterministic createdAt DESC.");
-    }
-    console.log("  ✓ Pagination and sorting verified.\n");
+    console.log("  ✓ Pagination deterministic across pages; overflow returns empty.\n");
 
     console.log("5. Staff detail, privacy, and history...");
     const detailRes = await fetch(`${BASE_URL}/api/staff/enrollments/${special.approvedT1}`, {
@@ -499,6 +599,129 @@ async function run() {
       }
     }
     console.log("  ✓ Dashboard metric surfaces load.\n");
+
+    console.log("8. Exact metric values...");
+    // Single captured now so a midnight crossing mid-run cannot skew ranges.
+    const suiteNow = new Date();
+    const day = bdtDayRange(suiteNow);
+
+    const bdmHtml = await (
+      await fetch(`${BASE_URL}/bdm/dashboard`, { headers: { Cookie: bdmCookie } })
+    ).text();
+    await expectMetric(
+      "BDM approved by me",
+      bdmHtml,
+      "approved-by-me",
+      await prisma.enrollment.count({ where: { status: EnrollmentStatus.APPROVED, approvedById: bdm.id } })
+    );
+    await expectMetric(
+      "BDM awaiting approval",
+      bdmHtml,
+      "awaiting-approval",
+      await prisma.enrollment.count({ where: { status: EnrollmentStatus.PAYMENT_VERIFIED } })
+    );
+    await expectMetric(
+      "BDM approved today",
+      bdmHtml,
+      "approved-today",
+      await prisma.enrollment.count({
+        where: {
+          status: EnrollmentStatus.APPROVED,
+          approvedById: bdm.id,
+          approvedAt: { gte: day.start, lt: day.end },
+        },
+      })
+    );
+    await expectMetric(
+      "BDM total verified",
+      bdmHtml,
+      "total-verified",
+      await prisma.enrollment.count({
+        where: { status: { in: [EnrollmentStatus.PAYMENT_VERIFIED, EnrollmentStatus.APPROVED] } },
+      })
+    );
+
+    const accountsHtml = await (
+      await fetch(`${BASE_URL}/accounts/dashboard`, { headers: { Cookie: accountsCookie } })
+    ).text();
+    await expectMetric(
+      "Accounts awaiting approval",
+      accountsHtml,
+      "awaiting-approval",
+      await prisma.enrollment.count({ where: { status: EnrollmentStatus.PAYMENT_VERIFIED } })
+    );
+    await expectMetric(
+      "Accounts total approved",
+      accountsHtml,
+      "total-approved",
+      await prisma.enrollment.count({ where: { status: EnrollmentStatus.APPROVED } })
+    );
+
+    const teacherHtml = await (
+      await fetch(`${BASE_URL}/teacher/dashboard`, { headers: { Cookie: teacher1Cookie } })
+    ).text();
+    await expectMetric(
+      "Teacher assigned students",
+      teacherHtml,
+      "assigned-students",
+      await prisma.enrollment.count({
+        where: { assignedTeacherId: teacher1.id, status: EnrollmentStatus.APPROVED },
+      })
+    );
+    await expectMetric(
+      "Teacher courses teaching",
+      teacherHtml,
+      "courses-teaching",
+      (
+        await prisma.enrollment.groupBy({
+          by: ["courseId"],
+          where: { assignedTeacherId: teacher1.id, status: EnrollmentStatus.APPROVED },
+        })
+      ).length
+    );
+    console.log("  ✓ Dashboard metric values match database ground truth.\n");
+
+    console.log("9. Invalid-filter and overflow page states...");
+    const invalidStaffHtml = await (
+      await fetch(`${BASE_URL}/staff/enrollments?status=INVALID`, { headers: { Cookie: bdmCookie } })
+    ).text();
+    if (!invalidStaffHtml.includes("Invalid filters")) {
+      throw new Error("Staff page did not render the explicit invalid-filter state.");
+    }
+    if (invalidStaffHtml.includes(`R3A1-${runId}`)) {
+      throw new Error("Staff page silently ran the unfiltered query for invalid filters.");
+    }
+
+    const invalidTeacherHtml = await (
+      await fetch(`${BASE_URL}/teacher/dashboard?q=${"x".repeat(101)}`, { headers: { Cookie: teacher1Cookie } })
+    ).text();
+    if (!invalidTeacherHtml.includes("Invalid filters")) {
+      throw new Error("Teacher page did not render the explicit invalid-filter state.");
+    }
+    if (invalidTeacherHtml.includes(extraUsers[1].name)) {
+      throw new Error("Teacher page silently ran the unscoped query for invalid filters.");
+    }
+
+    const overflowHtml = await (
+      await fetch(`${BASE_URL}/staff/enrollments?q=${runId}&page=99`, { headers: { Cookie: bdmCookie } })
+    ).text();
+    if (!overflowHtml.includes("No results on page 99") || !overflowHtml.includes("Back to page 1")) {
+      throw new Error("Overflow page did not render the explicit out-of-range state.");
+    }
+    if (overflowHtml.includes("Page 99 of")) {
+      throw new Error("Overflow page rendered an impossible page counter.");
+    }
+
+    const zeroHtml = await (
+      await fetch(`${BASE_URL}/staff/enrollments?q=${runId}-does-not-exist`, { headers: { Cookie: bdmCookie } })
+    ).text();
+    if (!zeroHtml.includes("No enrollments found")) {
+      throw new Error("Zero-result page did not render the normal empty state.");
+    }
+    if (zeroHtml.includes("Page 1 of 0")) {
+      throw new Error("Zero-result page rendered a Page 1 of 0 counter.");
+    }
+    console.log("  ✓ Invalid-filter and overflow states are explicit and honest.\n");
 
     console.log("====================================================");
     console.log("ALL RUN 3 ENROLLMENT OPERATIONS TESTS PASSED");

@@ -23,10 +23,13 @@ export default async function TeacherDashboardPage({
     q: typeof rawParams.q === "string" ? rawParams.q : undefined,
     courseId: typeof rawParams.courseId === "string" ? rawParams.courseId : undefined,
   });
-  const query: TeacherEnrollmentQueryInput = parsed.success ? parsed.data : {};
+  // Invalid filters never silently become an unscoped query: the roster is
+  // not fetched at all and an explicit invalid state is rendered instead.
+  const filtersValid = parsed.success;
+  const query: TeacherEnrollmentQueryInput = filtersValid ? parsed.data : {};
 
   const [enrollments, courses, metrics] = await Promise.all([
-    getTeacherDashboardEnrollments(session.user.id, query),
+    filtersValid ? getTeacherDashboardEnrollments(session.user.id, query) : Promise.resolve([]),
     getTeacherCourseFilterOptions(session.user.id),
     getTeacherDashboardMetrics(session.user.id),
   ]);
@@ -41,10 +44,10 @@ export default async function TeacherDashboardPage({
       />
 
       <div className="mb-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Assigned students" value={metrics.assignedStudents} helper="Approved assigned enrollments" tone="info" />
-        <StatCard label="Courses teaching" value={metrics.coursesTeaching} helper="Distinct approved courses" tone="success" />
-        <StatCard label="Approved this week" value={metrics.approvedThisWeek} helper="Bangladesh business week" tone="warning" />
-        <StatCard label="Total modules" value={metrics.totalModules} helper="Distinct course modules" tone="neutral" />
+        <StatCard metricId="assigned-students" label="Assigned students" value={metrics.assignedStudents} helper="Approved assigned enrollments" tone="info" />
+        <StatCard metricId="courses-teaching" label="Courses teaching" value={metrics.coursesTeaching} helper="Distinct approved courses" tone="success" />
+        <StatCard metricId="approved-this-week" label="Approved this week" value={metrics.approvedThisWeek} helper="Bangladesh business week" tone="warning" />
+        <StatCard metricId="total-modules" label="Total modules" value={metrics.totalModules} helper="Distinct course modules" tone="neutral" />
       </div>
 
       <div className="mb-6 rounded-[var(--lum-radius-card)] border border-white/60 bg-white/90 p-5 shadow-[var(--lum-shadow-soft)]">
@@ -77,7 +80,17 @@ export default async function TeacherDashboardPage({
       </div>
 
       <SectionCard title="Active student roster" description="Only approved assigned enrollments are listed here.">
-        {enrollments.length === 0 ? (
+        {!filtersValid ? (
+          <EmptyState
+            title="Invalid filters"
+            description="One or more search parameters are invalid. Adjust the search or reset to browse your assigned students."
+            action={
+              <Link href="/teacher/dashboard" className="lum-btn-primary">
+                Back to all students
+              </Link>
+            }
+          />
+        ) : enrollments.length === 0 ? (
           <EmptyState
             title="No students assigned yet"
             description="Students assigned to you will appear here once staff approves their verified enrollment."

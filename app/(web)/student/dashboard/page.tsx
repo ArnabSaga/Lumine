@@ -38,7 +38,8 @@ export default async function StudentDashboard({
   const [enrollments, availableCourses] = await Promise.all([
     prisma.enrollment.findMany({
       where: { studentId: student.id },
-      orderBy: { createdAt: "desc" },
+      // Deterministic tie-breaker: equal createdAt values order repeatably.
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       select: {
         id: true,
         reference: true,
@@ -49,13 +50,13 @@ export default async function StudentDashboard({
         course: { select: { id: true, slug: true, name: true } },
         qr: { select: { token: true } },
         payments: {
-          orderBy: { createdAt: "desc" },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1,
           select: { id: true, status: true, amount: true },
         },
         assignedTeacher: { select: { name: true } },
         statusHistory: {
-          orderBy: { createdAt: "asc" },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
           select: { id: true, toStatus: true, createdAt: true },
         },
       },

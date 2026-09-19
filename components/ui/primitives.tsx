@@ -86,11 +86,14 @@ export function StatCard({
   value,
   helper,
   tone = "neutral",
+  metricId,
 }: {
   label: string;
   value: ReactNode;
   helper?: string;
   tone?: Tone;
+  // Stable test anchor on the numeric value element (non-behavioral).
+  metricId?: string;
 }) {
   const toneClass =
     tone === "success"
@@ -107,7 +110,7 @@ export function StatCard({
     <GlassCard className="flex min-h-0 items-center justify-between gap-4">
       <div>
         <p className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">{label}</p>
-        <p className="mt-2 font-mono text-3xl font-black leading-none text-slate-950">{value}</p>
+        <p className="mt-2 font-mono text-3xl font-black leading-none text-slate-950" data-metric={metricId}>{value}</p>
         {helper && <p className="mt-2 text-sm text-slate-500">{helper}</p>}
       </div>
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${toneClass}`}>

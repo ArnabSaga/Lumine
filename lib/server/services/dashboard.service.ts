@@ -18,7 +18,8 @@ export type RecentApprovalActivity = {
 export async function getRecentApprovalActivity(limit = 5): Promise<RecentApprovalActivity[]> {
   const rows = await prisma.enrollment.findMany({
     where: { status: EnrollmentStatus.APPROVED },
-    orderBy: { approvedAt: "desc" },
+    // Deterministic tie-breaker: equal approvedAt values order repeatably.
+    orderBy: [{ approvedAt: "desc" }, { id: "desc" }],
     take: limit,
     select: {
       id: true,
@@ -99,10 +100,11 @@ export async function getAccountsDashboardData() {
 export async function getTeacherDashboardMetrics(teacherId: string) {
   const week = getBangladeshWeekRange();
 
-  const [assignedStudents, coursesTeaching, approvedThisWeek, distinctCourseIds] = await Promise.all([
+  const [assignedStudents, distinctCourses, approvedThisWeek] = await Promise.all([
     prisma.enrollment.count({
       where: { assignedTeacherId: teacherId, status: EnrollmentStatus.APPROVED },
     }),
+    // Single distinct-course query reused for Courses Teaching and Total Modules.
     prisma.enrollment.groupBy({
       by: ["courseId"],
       where: { assignedTeacherId: teacherId, status: EnrollmentStatus.APPROVED },
@@ -114,20 +116,16 @@ export async function getTeacherDashboardMetrics(teacherId: string) {
         approvedAt: { gte: week.start, lt: week.end },
       },
     }),
-    prisma.enrollment.groupBy({
-      by: ["courseId"],
-      where: { assignedTeacherId: teacherId, status: EnrollmentStatus.APPROVED },
-    }),
   ]);
 
   const moduleCounts = await prisma.course.findMany({
-    where: { id: { in: distinctCourseIds.map((item) => item.courseId) } },
+    where: { id: { in: distinctCourses.map((item) => item.courseId) } },
     select: { _count: { select: { modules: true } } },
   });
 
   return {
     assignedStudents,
-    coursesTeaching: coursesTeaching.length,
+    coursesTeaching: distinctCourses.length,
     approvedThisWeek,
     totalModules: moduleCounts.reduce((sum, course) => sum + course._count.modules, 0),
   };

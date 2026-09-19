@@ -23,7 +23,8 @@ export async function GET() {
 
   const enrollments = await prisma.enrollment.findMany({
     where: { studentId: student.id },
-    orderBy: { createdAt: "desc" },
+    // Deterministic tie-breaker: equal createdAt values order repeatably.
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: {
       id: true,
       reference: true,
@@ -38,7 +39,7 @@ export async function GET() {
         select: { token: true, createdAt: true },
       },
       payments: {
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 1,
         select: { status: true, amount: true, currency: true, verifiedAt: true },
       },

@@ -68,7 +68,8 @@ export async function getTeacherDashboardEnrollments(
 ): Promise<TeacherEnrollmentListItem[]> {
   const enrollments = await prisma.enrollment.findMany({
     where: buildTeacherEnrollmentWhere(teacherId, query),
-    orderBy: { approvedAt: "desc" },
+    // Deterministic tie-breaker: equal approvedAt values order repeatably.
+    orderBy: [{ approvedAt: "desc" }, { id: "desc" }],
     select: {
       id: true,
       reference: true,

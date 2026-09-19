@@ -124,7 +124,8 @@ async function getCanonicalPayments(enrollmentIds: string[]): Promise<SafePaymen
 
   return await prisma.payment.findMany({
     where: { enrollmentId: { in: enrollmentIds } },
-    orderBy: { createdAt: "desc" },
+    // Deterministic tie-breaker: id orders equal timestamps repeatably.
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: {
       enrollmentId: true,
       status: true,
@@ -149,7 +150,8 @@ export async function getStaffEnrollments(
       ? []
       : await prisma.enrollment.findMany({
           where,
-          orderBy: { createdAt: "desc" },
+          // Deterministic tie-breaker: equal createdAt values paginate repeatably.
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           skip: (query.page - 1) * pageSize,
           take: pageSize,
           select: {
@@ -203,7 +205,8 @@ export async function getStaffEnrollmentDetail(
       assignedTeacher: { select: { id: true, name: true } },
       approvedBy: { select: { id: true, name: true } },
       statusHistory: {
-        orderBy: { createdAt: "asc" },
+        // Deterministic tie-breaker for timeline rendering.
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         select: {
           id: true,
           fromStatus: true,

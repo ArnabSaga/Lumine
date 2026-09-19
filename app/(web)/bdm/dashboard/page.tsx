@@ -20,10 +20,10 @@ export default async function BdmDashboardPage() {
       />
 
       <div className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Approved by me" value={dashboard.approvedByMe} helper="Approved from your account" tone="success" />
-        <StatCard label="Awaiting approval" value={dashboard.awaitingApproval} helper="Global verified queue" tone="warning" />
-        <StatCard label="Approved today" value={dashboard.approvedToday} helper="Bangladesh business day" tone="info" />
-        <StatCard label="Total verified" value={dashboard.totalVerified} helper="Verified or approved" tone="neutral" />
+        <StatCard metricId="approved-by-me" label="Approved by me" value={dashboard.approvedByMe} helper="Approved from your account" tone="success" />
+        <StatCard metricId="awaiting-approval" label="Awaiting approval" value={dashboard.awaitingApproval} helper="Global verified queue" tone="warning" />
+        <StatCard metricId="approved-today" label="Approved today" value={dashboard.approvedToday} helper="Bangladesh business day" tone="info" />
+        <StatCard metricId="total-verified" label="Total verified" value={dashboard.totalVerified} helper="Verified or approved" tone="neutral" />
       </div>
 
       <div className="mb-6">

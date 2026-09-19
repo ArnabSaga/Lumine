@@ -23,10 +23,10 @@ export default async function AccountsDashboardPage() {
       />
 
       <div className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Awaiting approval" value={dashboard.awaitingApproval} helper="Payment verified enrollments" tone="info" />
-        <StatCard label="Approved today" value={dashboard.approvedToday} helper="Bangladesh business day" tone="warning" />
-        <StatCard label="Total approved" value={dashboard.totalApproved} helper="Approved enrollments" tone="success" />
-        <StatCard label="Verified value" value={paymentValue} helper="Succeeded payments" tone="neutral" />
+        <StatCard metricId="awaiting-approval" label="Awaiting approval" value={dashboard.awaitingApproval} helper="Payment verified enrollments" tone="info" />
+        <StatCard metricId="approved-today" label="Approved today" value={dashboard.approvedToday} helper="Bangladesh business day" tone="warning" />
+        <StatCard metricId="total-approved" label="Total approved" value={dashboard.totalApproved} helper="Approved enrollments" tone="success" />
+        <StatCard metricId="verified-value" label="Verified value" value={paymentValue} helper="Succeeded payments" tone="neutral" />
       </div>
 
       <div className="mb-6">

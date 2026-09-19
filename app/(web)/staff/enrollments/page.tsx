@@ -48,14 +48,18 @@ export default async function StaffEnrollmentsPage({
     page: typeof rawParams.page === "string" ? rawParams.page : undefined,
   });
 
-  const query = parsed.success
+  // Invalid filters never silently become an unfiltered query: the list is
+  // not fetched at all and an explicit invalid state is rendered instead.
+  const filtersValid = parsed.success;
+  const query = filtersValid
     ? parsed.data
     : { q: undefined, status: undefined, courseId: undefined, teacherId: undefined, page: 1 };
 
-  const [result, filters] = await Promise.all([
-    getStaffEnrollments(query),
-    getStaffEnrollmentFilterOptions(),
-  ]);
+  const filtersPromise = getStaffEnrollmentFilterOptions();
+  const result = filtersValid ? await getStaffEnrollments(query) : null;
+  const filters = await filtersPromise;
+
+  const isOverflow = result !== null && result.totalPages > 0 && result.page > result.totalPages;
 
   const baseParams = {
     q: query.q,
@@ -134,9 +138,33 @@ export default async function StaffEnrollmentsPage({
 
       <SectionCard
         title="Enrollment records"
-        description={`Showing ${result.items.length} of ${result.total} matching enrollments`}
+        description={
+          result === null
+            ? "Fix the invalid filters to browse enrollment records"
+            : `Showing ${result.items.length} of ${result.total} matching enrollments`
+        }
       >
-        {result.items.length === 0 ? (
+        {result === null ? (
+          <EmptyState
+            title="Invalid filters"
+            description="One or more search parameters are invalid. Adjust the filters or reset to browse all enrollment records."
+            action={
+              <Link href="/staff/enrollments" className="lum-btn-primary">
+                Back to all enrollments
+              </Link>
+            }
+          />
+        ) : isOverflow ? (
+          <EmptyState
+            title={`No results on page ${result.page}`}
+            description={`There are only ${result.totalPages} matching pages. Return to the first page to continue browsing.`}
+            action={
+              <Link href={makeHref({ ...baseParams, page: 1 })} className="lum-btn-primary">
+                Back to page 1
+              </Link>
+            }
+          />
+        ) : result.items.length === 0 ? (
           <EmptyState title="No enrollments found" description="Try a different search term or filter combination." />
         ) : (
           <div className="overflow-x-auto">
@@ -176,29 +204,31 @@ export default async function StaffEnrollmentsPage({
           </div>
         )}
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-semibold text-slate-500">
-            Page {result.page} of {result.totalPages}
-          </p>
-          <div className="flex gap-2">
-            <Link
-              aria-disabled={result.page <= 1}
-              className={`lum-btn-secondary ${result.page <= 1 ? "pointer-events-none opacity-50" : ""}`}
-              href={makeHref({ ...baseParams, page: result.page - 1 })}
-            >
-              Previous
-            </Link>
-            <Link
-              aria-disabled={result.totalPages === 0 || result.page >= result.totalPages}
-              className={`lum-btn-secondary ${
-                result.totalPages === 0 || result.page >= result.totalPages ? "pointer-events-none opacity-50" : ""
-              }`}
-              href={makeHref({ ...baseParams, page: result.page + 1 })}
-            >
-              Next
-            </Link>
+        {result !== null && !isOverflow && result.totalPages > 0 && (
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-semibold text-slate-500">
+              Page {result.page} of {result.totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Link
+                aria-disabled={result.page <= 1}
+                className={`lum-btn-secondary ${result.page <= 1 ? "pointer-events-none opacity-50" : ""}`}
+                href={makeHref({ ...baseParams, page: result.page - 1 })}
+              >
+                Previous
+              </Link>
+              <Link
+                aria-disabled={result.page >= result.totalPages}
+                className={`lum-btn-secondary ${
+                  result.page >= result.totalPages ? "pointer-events-none opacity-50" : ""
+                }`}
+                href={makeHref({ ...baseParams, page: result.page + 1 })}
+              >
+                Next
+              </Link>
+            </div>
           </div>
-        </div>
+        )}
       </SectionCard>
     </AppShell>
   );
