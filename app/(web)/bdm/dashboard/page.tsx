@@ -1,31 +1,14 @@
 import Link from "next/link";
 import { requirePageRole } from "@/lib/server/guards/auth";
-import { prisma } from "@/lib/server/db";
 import { UserRole } from "@/generated/prisma/client";
+import { getBdmDashboardData } from "@/lib/server/services/dashboard.service";
 import { CalloutCard, EmptyState, PageHeader, SectionCard, StatCard } from "@/components/ui/primitives";
 
 export const metadata = { title: "BDM Dashboard — Luminedge" };
 
 export default async function BdmDashboardPage() {
   const session = await requirePageRole([UserRole.BDM]);
-
-  const approvedByMe = await prisma.enrollment.findMany({
-    where: { approvedById: session.user.id },
-    orderBy: { approvedAt: "desc" },
-    take: 20,
-    select: {
-      id: true,
-      reference: true,
-      status: true,
-      approvedAt: true,
-      course: { select: { name: true } },
-      student: { select: { user: { select: { name: true, email: true } } } },
-      assignedTeacher: { select: { name: true } },
-    },
-  });
-
-  const pendingVerification = await prisma.enrollment.count({ where: { status: "PAYMENT_VERIFIED" } });
-  const totalApproved = await prisma.enrollment.count({ where: { approvedById: session.user.id, status: "APPROVED" } });
+  const dashboard = await getBdmDashboardData(session.user.id);
 
   return (
     <div>
@@ -36,9 +19,11 @@ export default async function BdmDashboardPage() {
         description="Review your recent approvals and open the scanner when a student is ready for verification."
       />
 
-      <div className="mb-6 grid gap-5 md:grid-cols-2">
-        <StatCard label="Approved by me" value={totalApproved} helper="Enrollments approved from your account" tone="success" />
-        <StatCard label="Awaiting approval" value={pendingVerification} helper="Verified payments ready for staff review" tone="warning" />
+      <div className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Approved by me" value={dashboard.approvedByMe} helper="Approved from your account" tone="success" />
+        <StatCard label="Awaiting approval" value={dashboard.awaitingApproval} helper="Global verified queue" tone="warning" />
+        <StatCard label="Approved today" value={dashboard.approvedToday} helper="Bangladesh business day" tone="info" />
+        <StatCard label="Total verified" value={dashboard.totalVerified} helper="Verified or approved" tone="neutral" />
       </div>
 
       <div className="mb-6">
@@ -50,8 +35,8 @@ export default async function BdmDashboardPage() {
         />
       </div>
 
-      <SectionCard title="My recent approvals" description="Privacy-safe approval history for enrollments approved by your account.">
-        {approvedByMe.length === 0 ? (
+      <SectionCard title="Recent approval activity" description="Latest completed approvals from real enrollment records.">
+        {dashboard.recentActivity.length === 0 ? (
           <EmptyState
             title="No approvals yet"
             description="Use the QR scanner to approve your first verified enrollment."
@@ -68,17 +53,17 @@ export default async function BdmDashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {approvedByMe.map((enr) => (
-                  <tr key={enr.id}>
+                {dashboard.recentActivity.map((activity) => (
+                  <tr key={activity.id}>
                     <td>
-                      <p className="font-bold text-slate-950">{enr.student.user.name}</p>
-                      <p className="max-w-[18rem] truncate text-xs text-slate-500">{enr.student.user.email}</p>
+                      <p className="font-bold text-slate-950">{activity.studentName}</p>
+                      <p className="max-w-[18rem] truncate text-xs text-slate-500">{activity.studentEmail}</p>
                     </td>
-                    <td className="font-semibold text-slate-700">{enr.course.name}</td>
-                    <td>{enr.assignedTeacher?.name ?? "Not assigned"}</td>
-                    <td className="font-mono text-xs text-slate-500">{enr.reference}</td>
+                    <td className="font-semibold text-slate-700">{activity.courseName}</td>
+                    <td>{activity.teacherName}</td>
+                    <td className="font-mono text-xs text-slate-500">{activity.reference}</td>
                     <td className="text-sm text-slate-500">
-                      {enr.approvedAt ? new Date(enr.approvedAt).toLocaleDateString() : "Pending"}
+                      {activity.approvedAt ? new Date(activity.approvedAt).toLocaleDateString("en-BD") : "Pending"}
                     </td>
                   </tr>
                 ))}

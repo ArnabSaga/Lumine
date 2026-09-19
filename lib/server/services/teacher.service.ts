@@ -2,6 +2,8 @@ import "server-only";
 
 import { prisma } from "@/lib/server/db";
 import { EnrollmentStatus } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
+import type { TeacherEnrollmentQueryInput } from "@/lib/shared/validations/enrollment-query";
 
 export interface TeacherEnrollmentListItem {
   enrollmentId: string;
@@ -31,18 +33,41 @@ export interface TeacherEnrollmentDetail {
   }>;
 }
 
+function buildTeacherEnrollmentWhere(
+  teacherId: string,
+  query: TeacherEnrollmentQueryInput = {}
+): Prisma.EnrollmentWhereInput {
+  const where: Prisma.EnrollmentWhereInput = {
+    assignedTeacherId: teacherId,
+    status: EnrollmentStatus.APPROVED,
+  };
+
+  if (query.courseId) {
+    where.courseId = query.courseId;
+  }
+
+  if (query.q) {
+    where.OR = [
+      { reference: { contains: query.q, mode: "insensitive" } },
+      { course: { name: { contains: query.q, mode: "insensitive" } } },
+      { student: { user: { name: { contains: query.q, mode: "insensitive" } } } },
+      { student: { user: { email: { contains: query.q, mode: "insensitive" } } } },
+    ];
+  }
+
+  return where;
+}
+
 /**
  * Returns all approved enrollments assigned to the given teacher.
  * Privacy-safe: only student name and email, no phone/address/education PII.
  */
 export async function getTeacherDashboardEnrollments(
-  teacherId: string
+  teacherId: string,
+  query: TeacherEnrollmentQueryInput = {}
 ): Promise<TeacherEnrollmentListItem[]> {
   const enrollments = await prisma.enrollment.findMany({
-    where: {
-      assignedTeacherId: teacherId,
-      status: EnrollmentStatus.APPROVED,
-    },
+    where: buildTeacherEnrollmentWhere(teacherId, query),
     orderBy: { approvedAt: "desc" },
     select: {
       id: true,
@@ -75,6 +100,19 @@ export async function getTeacherDashboardEnrollments(
     moduleCount: enr.course._count.modules,
     approvedAt: enr.approvedAt ? enr.approvedAt.toISOString() : null,
   }));
+}
+
+export async function getTeacherCourseFilterOptions(teacherId: string) {
+  const courseIds = await prisma.enrollment.groupBy({
+    by: ["courseId"],
+    where: { assignedTeacherId: teacherId, status: EnrollmentStatus.APPROVED },
+  });
+
+  return await prisma.course.findMany({
+    where: { id: { in: courseIds.map((item) => item.courseId) } },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
 }
 
 /**

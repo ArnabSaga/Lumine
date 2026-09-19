@@ -8,6 +8,7 @@ import EnrollmentActions from "./EnrollmentActions";
 import SelectedCourseEnrollment from "./SelectedCourseEnrollment";
 import { AppShell } from "@/components/ui/shells";
 import { EmptyState, GlassCard, PageHeader, StatusBadge } from "@/components/ui/primitives";
+import { getEnrollmentHistoryDescription, getEnrollmentHistoryLabel } from "@/lib/shared/enrollment-history";
 
 export const metadata = { title: "My Dashboard — Luminedge" };
 
@@ -53,6 +54,10 @@ export default async function StudentDashboard({
           select: { id: true, status: true, amount: true },
         },
         assignedTeacher: { select: { name: true } },
+        statusHistory: {
+          orderBy: { createdAt: "asc" },
+          select: { id: true, toStatus: true, createdAt: true },
+        },
       },
     }),
     prisma.course.findMany({
@@ -115,6 +120,12 @@ export default async function StudentDashboard({
               const isVerified = enr.status === "PAYMENT_VERIFIED";
               const isPending = enr.status === "PENDING_PAYMENT";
               const paymentPaid = latestPayment?.status === "SUCCEEDED";
+              const journey = [
+                { label: "Enrollment Confirmed", state: "done" },
+                { label: "Payment Verified", state: isVerified || isApproved ? "done" : "waiting" },
+                { label: "Staff Approval", state: isApproved ? "done" : isVerified ? "waiting" : "locked" },
+                { label: "Course Access", state: isApproved ? "done" : "locked" },
+              ];
 
               return (
                 <GlassCard key={enr.id} className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
@@ -146,6 +157,41 @@ export default async function StudentDashboard({
                         Access Course →
                       </Link>
                     )}
+
+                    <div className="mt-5 rounded-3xl border border-slate-200 bg-white/70 p-4">
+                      <p className="lum-eyebrow mb-3">Enrollment Journey</p>
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                        {journey.map((step) => (
+                          <div key={step.label} className="rounded-2xl border border-slate-200 bg-white/80 p-3">
+                            <p className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">{step.label}</p>
+                            <p
+                              className={`mt-2 text-sm font-black ${
+                                step.state === "done"
+                                  ? "text-emerald-700"
+                                  : step.state === "waiting"
+                                  ? "text-amber-700"
+                                  : "text-slate-400"
+                              }`}
+                            >
+                              {step.state === "done" ? "Complete" : step.state === "waiting" ? "Waiting" : "Locked"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      {enr.statusHistory.length > 0 && (
+                        <div className="mt-4 space-y-2">
+                          {enr.statusHistory.map((entry) => (
+                            <p key={entry.id} className="text-xs text-slate-500">
+                              <span className="font-bold text-slate-700">{getEnrollmentHistoryLabel(entry.toStatus)}</span>
+                              {" · "}
+                              {getEnrollmentHistoryDescription(entry.toStatus)}
+                              {" · "}
+                              {new Date(entry.createdAt).toLocaleDateString("en-BD")}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* QR */}

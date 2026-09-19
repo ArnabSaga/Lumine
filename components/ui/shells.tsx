@@ -108,11 +108,13 @@ function getRoleNav(role: string): NavItem[] {
   if (role === "ACCOUNTS") {
     return [
       { href: "/accounts/dashboard", label: "Dashboard" },
+      { href: "/staff/enrollments", label: "Enrollments" },
       { href: "/staff/scan", label: "Scan QR" },
     ];
   }
   return [
     { href: getDashboardRouteForRole(role), label: "Dashboard" },
+    { href: "/staff/enrollments", label: "Enrollments" },
     { href: "/staff/scan", label: "Scan QR" },
   ];
 }
