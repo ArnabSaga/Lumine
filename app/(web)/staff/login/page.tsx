@@ -1,11 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authClient } from "@/lib/client/auth-client";
 import { getDashboardRouteForRole } from "@/lib/shared/role-routes";
+import { AuthShell } from "@/components/ui/shells";
+import { Alert } from "@/components/ui/primitives";
 
 const DEMO_PRESETS = [
   { label: "BDM 1", email: "bdm1@example.com", role: "BDM" },
@@ -42,8 +43,8 @@ export default function StaffLoginPage() {
     const role = (session?.data?.user as { role?: string })?.role;
 
     if (role === "STUDENT") {
-      setError("This portal is for staff only. Please use the student portal.");
-      setLoading(false);
+      router.replace("/student/dashboard");
+      router.refresh();
       return;
     }
 
@@ -52,26 +53,18 @@ export default function StaffLoginPage() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "var(--lum-tertiary)", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem", fontFamily: "var(--font-sans)" }}>
-      <div style={{ width: "100%", maxWidth: 440 }}>
-        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <Link href="/">
-            <Image src="/logo/logo.png" alt="Luminedge" width={48} height={48} style={{ borderRadius: 12, margin: "0 auto 1rem" }} />
-          </Link>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.75rem", fontWeight: 900, letterSpacing: "-0.04em", color: "#f1f5f9", marginBottom: "0.375rem" }}>
-            Staff Portal
-          </h1>
-          <p style={{ color: "#64748b", fontSize: "0.875rem" }}>Sign in to access your BDM, Accounts, or Teacher workspace</p>
-        </div>
-
-        <div style={{ background: "#fff", borderRadius: "1rem", padding: "2rem", boxShadow: "0 4px 32px rgba(0,0,0,0.15)" }}>
+    <AuthShell
+      staff
+      title="Staff portal"
+      description="Sign in to access your BDM, Accounts, or Teacher workspace."
+    >
           {error && (
-            <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1.25rem", color: "#dc2626", fontSize: "0.875rem" }}>
-              {error}
+            <div className="mb-5">
+              <Alert tone="error">{error}</Alert>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.125rem" }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
               <label htmlFor="staff-email" className="lum-label">Email Address</label>
               <input
@@ -129,15 +122,12 @@ export default function StaffLoginPage() {
               Email filled — enter password manually
             </p>
           </div>
-        </div>
-
         <p style={{ textAlign: "center", marginTop: "1.5rem", fontSize: "0.8rem", color: "#475569" }}>
           Student?{" "}
           <Link href="/student/login" style={{ color: "var(--lum-primary)", fontWeight: 700, textDecoration: "none" }}>
             Go to Student Portal
           </Link>
         </p>
-      </div>
-    </main>
+    </AuthShell>
   );
 }

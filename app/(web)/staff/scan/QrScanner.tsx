@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
+import { Alert, EmptyState, GlassCard, StatusBadge } from "@/components/ui/primitives";
 
 const QR_READER_ELEMENT_ID = "qr-reader";
 
@@ -183,25 +184,18 @@ export default function QrScanner({ teachers }: ScannerProps) {
   const isPaid = result?.enrollment.status === "PAYMENT_VERIFIED" || result?.enrollment.status === "APPROVED";
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", alignItems: "start" }}>
+    <div className="grid gap-6 lg:grid-cols-[1fr_1fr] lg:items-start">
       {/* Scanner Input & Camera */}
-      <div className="lum-card">
-        <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 800, marginBottom: "1rem" }}>
-          Scan Enrollment QR
-        </h2>
+      <GlassCard>
+        <h2 className="font-display text-xl font-black text-slate-950">Scan enrollment QR</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500">Camera scan is the fastest path. Manual verification remains available for denied or unavailable camera access.</p>
 
         {/* Camera Scanner Viewfinder */}
-        <div style={{ marginBottom: "1.25rem" }}>
+        <div className="mt-5 mb-5">
           {cameraActive ? (
             <div>
               <div
-                style={{
-                  position: "relative",
-                  width: "100%",
-                  borderRadius: "0.75rem",
-                  overflow: "hidden",
-                  background: "#000",
-                }}
+                className="relative w-full overflow-hidden rounded-3xl bg-black shadow-[var(--lum-shadow-elevated)]"
               >
                 <div id={QR_READER_ELEMENT_ID} style={{ width: "100%" }} />
                 <div
@@ -243,18 +237,8 @@ export default function QrScanner({ teachers }: ScannerProps) {
                 <span>📷</span> Open Camera Scanner
               </button>
               {cameraError && (
-                <div
-                  style={{
-                    background: "rgba(245,158,11,0.08)",
-                    border: "1px solid rgba(245,158,11,0.2)",
-                    borderRadius: 6,
-                    padding: "0.5rem 0.75rem",
-                    fontSize: "0.75rem",
-                    color: "#92400e",
-                    marginBottom: "0.75rem",
-                  }}
-                >
-                  {cameraError}
+                <div className="mb-3">
+                  <Alert tone="warning">{cameraError}</Alert>
                 </div>
               )}
             </div>
@@ -262,7 +246,7 @@ export default function QrScanner({ teachers }: ScannerProps) {
         </div>
 
         {/* Manual Token Fallback */}
-        <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "1rem" }}>
+        <div className="border-t border-slate-200 pt-5">
           <p style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: "0.5rem" }}>
             Manual Token Verification
           </p>
@@ -291,25 +275,25 @@ export default function QrScanner({ teachers }: ScannerProps) {
         </div>
 
         {error && (
-          <div style={{ marginTop: "1rem", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: "0.75rem", color: "#dc2626", fontSize: "0.875rem" }}>
-            {error}
+          <div className="mt-4">
+            <Alert tone="error">{error}</Alert>
           </div>
         )}
-      </div>
+      </GlassCard>
 
       {/* Result & Approval Form */}
       <div>
         {!result && !approved && (
-          <div className="lum-card" style={{ textAlign: "center", padding: "2.5rem", color: "#94a3b8" }}>
-            <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📷</p>
-            <p>Scan or enter a student&apos;s QR code to view their verified enrollment details</p>
-          </div>
+          <GlassCard>
+            <EmptyState title="Ready to verify" description="Scan or enter a student's QR code to view payment and enrollment details." />
+          </GlassCard>
         )}
 
         {approved && (
-          <div className="lum-card" style={{ textAlign: "center", padding: "2.5rem" }}>
-            <p style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>✅</p>
-            <p style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "1.25rem", color: "#059669" }}>Enrollment Approved!</p>
+          <GlassCard>
+            <div className="text-center">
+            <p style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>✓</p>
+            <p className="font-display text-2xl font-black text-emerald-700">Enrollment approved</p>
             <button
               onClick={() => { setResult(null); setToken(""); setApproved(false); setSelectedTeacher(""); }}
               className="lum-btn-secondary"
@@ -317,16 +301,15 @@ export default function QrScanner({ teachers }: ScannerProps) {
             >
               Scan Another QR Code
             </button>
-          </div>
+            </div>
+          </GlassCard>
         )}
 
         {result && !approved && (
-          <div className="lum-card" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "1.1rem" }}>Enrollment Details</h3>
-              <span className={`lum-badge ${isPaid ? "lum-badge-verified" : "lum-badge-pending"}`}>
-                {result.enrollment.status.replace(/_/g, " ")}
-              </span>
+          <GlassCard className="flex flex-col gap-5">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="font-display text-xl font-black text-slate-950">Enrollment details</h3>
+              <StatusBadge status={result.enrollment.status} />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", fontSize: "0.85rem" }}>
@@ -357,7 +340,7 @@ export default function QrScanner({ teachers }: ScannerProps) {
             </div>
 
             {isPaid && result.enrollment.status === "PAYMENT_VERIFIED" && (
-              <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "1rem" }}>
+              <div className="border-t border-slate-200 pt-5">
                 <div>
                   <label htmlFor="teacher-select" className="lum-label">Assign Teacher <span style={{ color: "#ef4444" }}>*</span></label>
                   <select
@@ -384,17 +367,13 @@ export default function QrScanner({ teachers }: ScannerProps) {
             )}
 
             {result.enrollment.status === "APPROVED" && (
-              <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 8, padding: "0.75rem", color: "#059669", fontSize: "0.875rem" }}>
-                ✓ Already approved. Assigned to: {result.enrollment.assignedTeacher?.name ?? "N/A"}
-              </div>
+              <Alert tone="success">Already approved. Assigned to: {result.enrollment.assignedTeacher?.name ?? "N/A"}</Alert>
             )}
 
             {result.enrollment.status === "PENDING_PAYMENT" && (
-              <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 8, padding: "0.75rem", color: "#92400e", fontSize: "0.875rem" }}>
-                ⚠ Payment not yet verified — cannot approve this enrollment.
-              </div>
+              <Alert tone="warning">Payment not yet verified. This enrollment cannot be approved.</Alert>
             )}
-          </div>
+          </GlassCard>
         )}
       </div>
     </div>

@@ -60,8 +60,10 @@ export async function POST(req: Request) {
 
   const { phone, address, education, additionalInfo } = parsed.data;
 
-  const student = await prisma.student.create({
-    data: {
+  const student = await prisma.student.upsert({
+    where: { userId: session.user.id },
+    update: {},
+    create: {
       userId: session.user.id, // derives userId exclusively from session
       phone,
       address,

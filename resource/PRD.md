@@ -27,9 +27,9 @@ Historical note: an earlier Admission/RegistrationLink design (BDM-owned QR regi
 
 # 2. Product Summary
 
-The Student Management Portal is a role-based admission workflow system for an education/training organization.
+The Student Management Portal is a role-based course-enrollment workflow system for an education/training organization.
 
-The system manages the journey of a student from first registration through BDM processing, Accounts approval, and Teacher assignment.
+The system manages the journey of a student from public course discovery through signup, profile completion, explicit enrollment, server-controlled payment, staff QR verification, approval, and Teacher assignment.
 
 The core business flow is:
 
@@ -74,15 +74,14 @@ The most important product requirements are:
 
 # 3. Product Goal
 
-The goal is to provide a simple, secure, and auditable admission workflow where each department can perform only the responsibilities relevant to its role.
+The goal is to provide a simple, secure, and auditable enrollment workflow where each role can perform only the responsibilities relevant to that role.
 
 The product should make it easy to answer:
 
 ```text
-Which BDM brought this student?
 What course is the student joining?
 How much was paid?
-Has Accounts approved the admission?
+Has staff approved the enrollment?
 Which Teacher is assigned?
 Can the Teacher access the student yet?
 What course modules should the Teacher teach?
@@ -285,7 +284,7 @@ These may be implemented only after the mandatory workflow is complete:
 - filter by course
 - filter by Teacher
 - filter by status
-- admission/status history UI
+- enrollment/status history UI
 - payment status
 - dashboard statistics
 - Teacher assignment notification
@@ -298,8 +297,6 @@ These may be implemented only after the mandatory workflow is complete:
 
 The MVP does not require:
 
-- student login
-- student dashboard
 - Google/social login
 - OTP login
 - password reset flow
@@ -801,7 +798,7 @@ Do not hardcode IELTS modules directly into the Teacher page.
 
 ## Description
 
-The data model must support admission status/activity history.
+The data model must support enrollment status/activity history.
 
 This is required in the schema from the beginning even if the UI is added later.
 
@@ -809,9 +806,9 @@ This is required in the schema from the beginning even if the UI is added later.
 
 ```text
 Student Registered
-Admission Submitted by BDM
-Accounts Approved
-Assigned to Teacher
+Enrollment Created
+Payment Verified
+Enrollment Approved
 ```
 
 ## Acceptance Criteria
@@ -1163,24 +1160,27 @@ Exact route names may evolve, but the API must support the following capabilitie
 ## Public
 
 ```text
-Validate registration token
-Submit student registration
+List public courses
+Submit public student signup
+Create session-owned student profile
+Create explicit student enrollment
+Run server-controlled checkout
 ```
 
 ## BDM
 
 ```text
-List own Students
-View own Student
-Submit Admission details
+Open BDM dashboard
+Scan enrollment QR
+Approve verified enrollment with Teacher assignment
 ```
 
 ## Accounts
 
 ```text
-List pending Admissions
-View allowed Admission details
-Approve Admission
+Open Accounts dashboard
+Scan enrollment QR
+Approve verified enrollment with Teacher assignment
 ```
 
 ## Teacher
@@ -1245,7 +1245,7 @@ Examples:
 ```text
 No students have registered yet.
 
-No admissions are awaiting approval.
+No verified enrollments are awaiting approval.
 
 No approved students are assigned to you yet.
 ```
@@ -1314,7 +1314,7 @@ However:
 
 Core workflow operations should fail safely.
 
-A failed multi-step operation should not leave partially transitioned admission state.
+A failed multi-step operation should not leave partially transitioned enrollment state.
 
 ---
 
@@ -1576,7 +1576,7 @@ If the history UI is implemented, it should be able to show:
 Registered
 19 Sep 2026, 10:00
 
-Admission Submitted
+Enrollment Created
 19 Sep 2026, 10:20
 
 Accounts Approved
@@ -1598,7 +1598,7 @@ Priority order:
 1. Database/Foundation
 2. Authentication
 3. Authorization
-4. QR registration
+4. Enrollment QR verification
 5. BDM workflow
 6. Accounts workflow
 7. Teacher workflow
@@ -1675,7 +1675,6 @@ Start every item unchecked; check only what the closure verification proves:
 
 Potential future product features after the practical:
 
-- student login/dashboard
 - course progress tracking
 - class attendance
 - installment/payment history
@@ -1689,8 +1688,8 @@ Potential future product features after the practical:
 - analytics/reporting
 - administrator/super-admin role
 - configurable course templates
-- admissions archive
-- student re-enrollment / multiple admissions
+- enrollment archive
+- student re-enrollment / multiple enrollments
 
 These are not part of the current MVP unless explicitly requested.
 
@@ -1721,4 +1720,4 @@ visual complexity
 extra infrastructure
 ```
 
-The strongest submission is a complete, secure admission workflow that behaves correctly for every role.
+The strongest submission is a complete, secure enrollment workflow that behaves correctly for every role.

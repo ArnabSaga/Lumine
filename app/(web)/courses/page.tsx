@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/server/db";
+import { PublicShell } from "@/components/ui/shells";
+import { GlassCard, PageHeader } from "@/components/ui/primitives";
 
 export const metadata = {
   title: "Courses — Luminedge",
@@ -25,66 +27,53 @@ export default async function CoursesPage() {
   });
 
   return (
-    <main style={{ minHeight: "100vh", background: "var(--lum-neutral)", fontFamily: "var(--font-sans)" }}>
-      {/* Header */}
-      <header style={{ background: "#fff", borderBottom: "1px solid #e2e8f0" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", height: 64 }}>
-          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "var(--lum-secondary)" }}>
-            <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "1.1rem" }}>← Luminedge</span>
-          </Link>
-        </div>
-      </header>
+    <PublicShell>
+      <section className="lum-public-section">
+        <PageHeader
+          light
+          eyebrow="Course catalog"
+          title="Choose the course that matches your next goal"
+          description="Browse practical programs with clear module structure, pricing, and a guided enrollment path."
+        />
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "3rem 1.5rem" }}>
-        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "2rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.5rem" }}>
-          All Courses
-        </h1>
-        <p style={{ color: "#64748b", marginBottom: "2.5rem" }}>Choose the program that fits your goals and enroll in minutes.</p>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "1.5rem" }}>
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {courses.map((course) => (
-            <div key={course.id} className="lum-card" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <GlassCard key={course.id} hover className="flex h-full flex-col">
               <div>
-                <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.35rem", fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 0.5rem" }}>
-                  {course.name}
-                </h2>
-                <p style={{ color: "#64748b", fontSize: "0.875rem", lineHeight: 1.6 }}>
-                  {course.description}
-                </p>
+                <div className="mb-4 inline-flex rounded-full bg-amber-100 px-3 py-1 font-mono text-xs font-black uppercase tracking-[0.08em] text-amber-800">
+                  {course.modules.length} modules
+                </div>
+                <h2 className="font-display text-2xl font-black text-slate-950">{course.name}</h2>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{course.description}</p>
               </div>
 
-              {/* Modules list */}
-              <div style={{ background: "#f8fafc", borderRadius: 8, padding: "0.875rem" }}>
-                <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#64748b", marginBottom: "0.625rem" }}>
-                  {course.modules.length} Modules
-                </p>
-                <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
-                  {course.modules.map((mod) => (
-                    <li key={mod.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.8rem", color: "#475569" }}>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.65rem", fontWeight: 700, color: "#b45309", minWidth: 18, textAlign: "right" }}>
-                        {mod.order}.
-                      </span>
-                      {mod.title}
+              <div className="my-6 rounded-2xl border border-slate-200 bg-white/75 p-4">
+                <p className="mb-3 text-xs font-black uppercase tracking-[0.08em] text-slate-500">Curriculum preview</p>
+                <ol className="space-y-2">
+                  {course.modules.slice(0, 5).map((mod) => (
+                    <li key={mod.id} className="flex items-center gap-3 text-sm text-slate-700">
+                      <span className="w-6 text-right font-mono text-xs font-black text-amber-700">{mod.order}.</span>
+                      <span className="min-w-0 truncate">{mod.title}</span>
                     </li>
                   ))}
                 </ol>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "0.75rem", borderTop: "1px solid #f1f5f9", marginTop: "auto" }}>
+              <div className="mt-auto flex items-end justify-between gap-4 border-t border-slate-200 pt-5">
                 <div>
-                  <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>Course Fee</p>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "1.25rem", fontWeight: 800 }}>
+                  <p className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">Course fee</p>
+                  <p className="mt-1 font-mono text-xl font-black text-slate-950">
                     {course.currency} {Number(course.price).toLocaleString()}
-                  </span>
+                  </p>
                 </div>
-                <Link href={`/courses/${course.slug}`} className="lum-btn-primary" style={{ fontSize: "0.8rem", padding: "0.5rem 1rem" }}>
-                  Enroll Now →
+                <Link href={`/courses/${course.slug}`} className="lum-btn-primary px-4 py-2 text-sm">
+                  View Course
                 </Link>
               </div>
-            </div>
+            </GlassCard>
           ))}
         </div>
-      </div>
-    </main>
+      </section>
+    </PublicShell>
   );
 }

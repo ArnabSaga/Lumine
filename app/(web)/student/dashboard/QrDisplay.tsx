@@ -9,6 +9,7 @@ interface QrDisplayProps {
 
 export default function QrDisplay({ token }: QrDisplayProps) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
 
   useEffect(() => {
     QRCode.toDataURL(token, {
@@ -17,6 +18,15 @@ export default function QrDisplay({ token }: QrDisplayProps) {
       color: { dark: "#000000", light: "#ffffff" },
     }).then(setDataUrl).catch(console.error);
   }, [token]);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(token);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("error");
+    }
+  }
 
   if (!dataUrl) {
     return (
@@ -36,9 +46,37 @@ export default function QrDisplay({ token }: QrDisplayProps) {
         height={160}
         style={{ borderRadius: 8, border: "2px solid var(--lum-primary)", display: "block" }}
       />
-      <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.6rem", color: "#94a3b8", marginTop: "0.375rem", textAlign: "center", wordBreak: "break-all", maxWidth: 160 }}>
+      <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.6rem", color: "#64748b", marginTop: "0.5rem", textAlign: "center", wordBreak: "break-all", maxWidth: 160 }}>
         {token.slice(0, 16)}…
       </p>
+      <button
+        type="button"
+        onClick={handleCopy}
+        style={{
+          marginTop: "0.5rem",
+          width: 160,
+          padding: "0.45rem 0.5rem",
+          borderRadius: 6,
+          border: "1px solid #cbd5e1",
+          background: "#fff",
+          color: "var(--lum-secondary)",
+          cursor: "pointer",
+          fontSize: "0.7rem",
+          fontWeight: 700,
+        }}
+      >
+        Copy Verification Code
+      </button>
+      {copyStatus === "copied" && (
+        <p style={{ fontSize: "0.65rem", color: "#059669", marginTop: "0.375rem", maxWidth: 160 }}>
+          Verification code copied.
+        </p>
+      )}
+      {copyStatus === "error" && (
+        <p style={{ fontSize: "0.65rem", color: "#dc2626", marginTop: "0.375rem", maxWidth: 160 }}>
+          Unable to copy automatically. Try again or use the QR scan.
+        </p>
+      )}
     </div>
   );
 }

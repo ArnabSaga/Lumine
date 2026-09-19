@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { requirePageRole } from "@/lib/server/guards/auth";
 import { prisma } from "@/lib/server/db";
 import { UserRole } from "@/generated/prisma/client";
 import QrDisplay from "./QrDisplay";
 import EnrollmentActions from "./EnrollmentActions";
 import SelectedCourseEnrollment from "./SelectedCourseEnrollment";
-import SignOutButton from "@/components/SignOutButton";
+import { AppShell } from "@/components/ui/shells";
+import { EmptyState, GlassCard, PageHeader, StatusBadge } from "@/components/ui/primitives";
 
 export const metadata = { title: "My Dashboard — Luminedge" };
 
@@ -50,7 +50,7 @@ export default async function StudentDashboard({
         payments: {
           orderBy: { createdAt: "desc" },
           take: 1,
-          select: { id: true, status: true, amount: true, providerPaymentId: true },
+          select: { id: true, status: true, amount: true },
         },
         assignedTeacher: { select: { name: true } },
       },
@@ -71,31 +71,18 @@ export default async function StudentDashboard({
   const unenrolledCourses = availableCourses.filter((c) => !enrolledCourseIds.has(c.id));
 
   return (
-    <main style={{ minHeight: "100vh", background: "var(--lum-neutral)", fontFamily: "var(--font-sans)" }}>
-      {/* Top nav */}
-      <header style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", position: "sticky", top: 0, zIndex: 10 }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60 }}>
-          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-            <Image src="/logo/logo.png" alt="Luminedge" width={28} height={28} style={{ borderRadius: 6 }} />
-            <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "1rem", color: "var(--lum-secondary)" }}>Luminedge</span>
-          </Link>
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
-              {session.user.name}
-            </span>
-            <SignOutButton />
-          </div>
-        </div>
-      </header>
-
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "2rem 1.5rem" }}>
-        {/* Page heading */}
-        <div style={{ marginBottom: "2rem" }}>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.75rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.25rem" }}>
-            My Dashboard
-          </h1>
-          <p style={{ color: "#64748b", fontSize: "0.875rem" }}>Manage your enrollments and track your learning journey.</p>
-        </div>
+    <AppShell
+      user={{ name: session.user.name, email: session.user.email, role: session.user.role }}
+      title="Student Portal"
+      activeHref="/student/dashboard"
+      student
+    >
+        <PageHeader
+          light
+          eyebrow="Student portal"
+          title="My dashboard"
+          description="Manage your enrollments, payment verification, QR code, and approved course access."
+        />
 
         {/* Selected Course Prompt (if navigated with ?course=...) */}
         {selectedCourse && (
@@ -113,12 +100,15 @@ export default async function StudentDashboard({
 
         {/* Enrollments */}
         {enrollments.length === 0 && !selectedCourse ? (
-          <div className="lum-card" style={{ textAlign: "center", padding: "3rem", marginBottom: "2rem" }}>
-            <p style={{ color: "#94a3b8", marginBottom: "1.25rem" }}>You haven&apos;t enrolled in any courses yet.</p>
-            <Link href="/courses" className="lum-btn-primary">Browse Courses →</Link>
-          </div>
+          <GlassCard className="mb-6">
+            <EmptyState
+              title="No enrollments yet"
+              description="Browse the course catalog and confirm your first enrollment when you are ready."
+              action={<Link href="/courses" className="lum-btn-primary">Browse Courses</Link>}
+            />
+          </GlassCard>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", marginBottom: "2rem" }}>
+          <div className="mb-8 flex flex-col gap-5">
             {enrollments.map((enr) => {
               const latestPayment = enr.payments[0];
               const isApproved = enr.status === "APPROVED";
@@ -127,19 +117,17 @@ export default async function StudentDashboard({
               const paymentPaid = latestPayment?.status === "SUCCEEDED";
 
               return (
-                <div key={enr.id} className="lum-card" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "1.5rem", alignItems: "start" }}>
+                <GlassCard key={enr.id} className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
                   {/* Left */}
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
                       <span style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 800 }}>{enr.course.name}</span>
-                      <span className={`lum-badge ${isApproved ? "lum-badge-approved" : isVerified ? "lum-badge-verified" : "lum-badge-pending"}`}>
-                        {isApproved ? "Approved" : isVerified ? "Payment Verified" : "Pending Payment"}
-                      </span>
+                      <StatusBadge status={enr.status} />
                     </div>
                     <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "#94a3b8", marginBottom: "0.5rem" }}>
                       REF: {enr.reference}
                     </p>
-                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "1rem", fontWeight: 700, marginBottom: "0.75rem" }}>
+                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "1rem", fontWeight: 800, marginBottom: "0.75rem", color: "#0f172a" }}>
                       {enr.currencyAtEnrollment} {Number(enr.priceAtEnrollment).toLocaleString()}
                     </p>
 
@@ -162,14 +150,14 @@ export default async function StudentDashboard({
 
                   {/* QR */}
                   {(isVerified || isApproved) && enr.qr?.token && (
-                    <div style={{ textAlign: "center" }}>
+                    <div className="rounded-3xl border border-slate-200 bg-white/75 p-4 text-center">
                       <p style={{ fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#64748b", marginBottom: "0.5rem" }}>
                         Verification QR
                       </p>
                       <QrDisplay token={enr.qr.token} />
                     </div>
                   )}
-                </div>
+                </GlassCard>
               );
             })}
           </div>
@@ -181,9 +169,9 @@ export default async function StudentDashboard({
             <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", fontWeight: 800, marginBottom: "1rem" }}>
               Enroll in More Courses
             </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1rem" }}>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {unenrolledCourses.map((course) => (
-                <div key={course.id} className="lum-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <GlassCard key={course.id} hover className="flex items-center justify-between gap-4">
                   <div>
                     <p style={{ fontWeight: 700, fontSize: "0.9rem", marginBottom: 2 }}>{course.name}</p>
                     <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", color: "#64748b" }}>
@@ -193,12 +181,11 @@ export default async function StudentDashboard({
                   <Link href={`/courses/${course.slug}`} className="lum-btn-primary" style={{ fontSize: "0.75rem", padding: "0.4rem 0.875rem" }}>
                     View →
                   </Link>
-                </div>
+                </GlassCard>
               ))}
             </div>
           </div>
         )}
-      </div>
-    </main>
+    </AppShell>
   );
 }

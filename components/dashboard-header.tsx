@@ -23,7 +23,7 @@ export function DashboardHeader({ user, title }: DashboardHeaderProps) {
     try {
       setLoggingOut(true);
       await authClient.signOut();
-      router.push("/login");
+      router.push("/staff/login");
       router.refresh();
     } catch (err) {
       console.error("Logout error:", err);

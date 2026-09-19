@@ -48,15 +48,7 @@ export default function SelectedCourseEnrollment({ course }: SelectedCourseEnrol
   }
 
   return (
-    <div
-      className="lum-card"
-      style={{
-        background: "linear-gradient(135deg, rgba(250,206,57,0.08) 0%, rgba(255,255,255,1) 100%)",
-        border: "1.5px solid rgba(250,206,57,0.4)",
-        padding: "1.75rem",
-        marginBottom: "2rem",
-      }}
-    >
+    <div className="lum-card mb-8 border-amber-300/60 bg-white/90">
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "1.25rem" }}>
         <div>
           <span
@@ -85,7 +77,7 @@ export default function SelectedCourseEnrollment({ course }: SelectedCourseEnrol
           </p>
         </div>
 
-        <div style={{ textAlign: "right" }}>
+        <div className="text-left sm:text-right">
           {error && (
             <p style={{ color: "#dc2626", fontSize: "0.8rem", marginBottom: "0.5rem" }}>
               {error}

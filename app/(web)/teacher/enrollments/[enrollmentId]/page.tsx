@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentSession } from "@/lib/server/guards/auth";
 import { getTeacherEnrollmentDetail } from "@/lib/server/services/teacher.service";
+import { GlassCard, PageHeader } from "@/components/ui/primitives";
 
 export default async function TeacherEnrollmentDetailPage({
   params,
@@ -19,131 +20,71 @@ export default async function TeacherEnrollmentDetailPage({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Navigation Header */}
-      <div className="flex items-center gap-3">
-        <Link
-          href="/teacher/dashboard"
-          className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:border-slate-600 hover:bg-slate-700 hover:text-white"
-        >
-          ← Back to Student Roster
-        </Link>
-        <span className="text-sm text-slate-500">/</span>
-        <h1 className="text-lg font-bold text-white">
-          Course Syllabus & Student Overview
-        </h1>
-      </div>
+    <div>
+      <PageHeader
+        light
+        eyebrow="Course workspace"
+        title="Student and curriculum overview"
+        description="Assigned approved enrollment details with privacy-minimized student information."
+        action={<Link href="/teacher/dashboard" className="lum-btn-secondary border-white/20 bg-white/10 text-white hover:bg-white/20">Back to roster</Link>}
+      />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Student Summary Card */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl backdrop-blur-xl h-fit">
-          <h2 className="text-base font-semibold text-white border-b border-slate-800 pb-3 mb-4">
-            Student Information
-          </h2>
-          <div className="space-y-4 text-sm">
-            <div>
-              <span className="text-xs uppercase tracking-wider text-slate-400">
-                Student Name
-              </span>
-              <p className="mt-1 font-semibold text-white">
-                {detail.studentName}
-              </p>
-            </div>
-
-            <div>
-              <span className="text-xs uppercase tracking-wider text-slate-400">
-                Email Address
-              </span>
-              <p className="mt-1 font-medium text-slate-200">
-                {detail.studentEmail}
-              </p>
-            </div>
-
-            <div>
-              <span className="text-xs uppercase tracking-wider text-slate-400">
-                Enrolled Course
-              </span>
-              <p className="mt-1 font-bold text-indigo-400">
-                {detail.courseName}
-              </p>
-            </div>
-
-            <div>
-              <span className="text-xs uppercase tracking-wider text-slate-400">
-                Enrollment Reference
-              </span>
-              <p className="mt-1 font-mono text-xs text-slate-300">
-                {detail.reference}
-              </p>
-            </div>
-
-            <div>
-              <span className="text-xs uppercase tracking-wider text-slate-400">
-                Approved Date
-              </span>
-              <p className="mt-1 font-medium text-slate-200">
-                {detail.approvedAt
-                  ? new Date(detail.approvedAt).toLocaleDateString()
-                  : "—"}
-              </p>
-            </div>
-
-            <div className="pt-2">
-              <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
-                ✓ Staff Verified & Active
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Course Modules Curriculum Card */}
-        <div className="lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl backdrop-blur-xl">
-          <div className="border-b border-slate-800 pb-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-white">
-                  {detail.courseName} — Curriculum Modules
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {detail.courseDescription ||
-                    "Official curriculum syllabus and learning requirements"}
-                </p>
+      <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
+        <GlassCard>
+          <h2 className="border-b border-slate-200 pb-4 font-display text-xl font-black text-slate-950">Student summary</h2>
+          <div className="mt-5 space-y-5 text-sm">
+            {[
+              ["Student name", detail.studentName],
+              ["Email address", detail.studentEmail],
+              ["Course", detail.courseName],
+              ["Reference", detail.reference],
+              ["Approved date", detail.approvedAt ? new Date(detail.approvedAt).toLocaleDateString() : "Pending"],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <p className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">{label}</p>
+                <p className="mt-1 break-words font-semibold text-slate-950">{value}</p>
               </div>
-              <span className="rounded-full bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 text-xs font-semibold text-indigo-400">
-                {detail.modules.length} Core Modules
-              </span>
+            ))}
+            <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black uppercase tracking-[0.08em] text-emerald-700">
+              Staff verified and active
+            </span>
+          </div>
+        </GlassCard>
+
+        <GlassCard>
+          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="lum-eyebrow mb-2">Curriculum</p>
+              <h2 className="font-display text-2xl font-black text-slate-950">{detail.courseName}</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {detail.courseDescription || "Official curriculum syllabus and learning requirements."}
+              </p>
             </div>
+            <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
+              {detail.modules.length} modules
+            </span>
           </div>
 
           {detail.modules.length === 0 ? (
-            <p className="text-sm text-slate-400 py-6 text-center">
+            <p className="rounded-2xl border border-slate-200 bg-white/70 p-5 text-center text-sm text-slate-500">
               No modules defined for this course.
             </p>
           ) : (
             <div className="space-y-3">
               {detail.modules.map((mod, index) => (
-                <div
-                  key={mod.id}
-                  className="flex items-start gap-4 rounded-xl border border-slate-800 bg-slate-950/50 p-4 transition-colors hover:border-slate-700"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600/20 text-xs font-bold text-indigo-400 border border-indigo-500/30">
+                <div key={mod.id} className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white/75 p-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--lum-primary)] font-mono text-sm font-black text-slate-950">
                     {index + 1}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-white">
-                      {mod.title}
-                    </h3>
-                    {mod.description && (
-                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                        {mod.description}
-                      </p>
-                    )}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-slate-950">{mod.title}</h3>
+                    {mod.description && <p className="mt-1 text-sm leading-6 text-slate-600">{mod.description}</p>}
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </GlassCard>
       </div>
     </div>
   );

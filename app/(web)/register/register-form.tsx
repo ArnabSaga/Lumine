@@ -1,10 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { authClient } from "@/lib/client/auth-client";
+import { AuthShell } from "@/components/ui/shells";
+import { Alert } from "@/components/ui/primitives";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -51,28 +52,17 @@ export function RegisterForm() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "var(--lum-neutral)", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem", fontFamily: "var(--font-sans)" }}>
-      <div style={{ width: "100%", maxWidth: 440 }}>
-        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <Link href="/">
-            <Image src="/logo/logo.png" alt="Luminedge" width={48} height={48} style={{ borderRadius: 12, margin: "0 auto 1rem" }} />
-          </Link>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.75rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.375rem" }}>
-            Create Your Account
-          </h1>
-          <p style={{ color: "#64748b", fontSize: "0.875rem" }}>
-            {courseHint ? `Join Luminedge to enroll in your selected course` : "Start your learning journey with Luminedge"}
-          </p>
-        </div>
-
-        <div className="lum-card" style={{ padding: "2rem" }}>
+    <AuthShell
+      title="Create your account"
+      description={courseHint ? "Join Luminedge to enroll in your selected course." : "Start your learning journey with a secure student account."}
+    >
           {error && (
-            <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1.25rem", color: "#dc2626", fontSize: "0.875rem" }}>
-              {error}
+            <div className="mb-5">
+              <Alert tone="error">{error}</Alert>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.125rem" }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
               <label htmlFor="name" className="lum-label">Full Name</label>
               <input
@@ -129,8 +119,6 @@ export function RegisterForm() {
               Sign in
             </Link>
           </p>
-        </div>
-      </div>
-    </main>
+    </AuthShell>
   );
 }

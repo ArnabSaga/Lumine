@@ -50,18 +50,8 @@ export default function EnrollmentActions({ enrollmentId, latestPayment }: Enrol
 
   if (status === "initiated") {
     return (
-      <div
-        style={{
-          background: "rgba(16,185,129,0.08)",
-          border: "1px solid rgba(16,185,129,0.2)",
-          borderRadius: 8,
-          padding: "0.75rem 1rem",
-          fontSize: "0.875rem",
-          color: "#059669",
-          marginTop: "0.5rem",
-        }}
-      >
-        ✓ Demo payment verified — loading your QR code...
+      <div className="lum-alert lum-alert-success mt-3">
+        Demo payment verified. Loading your QR code...
       </div>
     );
   }
@@ -71,21 +61,7 @@ export default function EnrollmentActions({ enrollmentId, latestPayment }: Enrol
 
   return (
     <div style={{ marginTop: "0.5rem" }}>
-      {error && (
-        <div
-          style={{
-            background: "rgba(239,68,68,0.08)",
-            border: "1px solid rgba(239,68,68,0.2)",
-            borderRadius: 8,
-            padding: "0.625rem 0.875rem",
-            marginBottom: "0.5rem",
-            color: "#dc2626",
-            fontSize: "0.8rem",
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {error && <div className="lum-alert lum-alert-error mb-3">{error}</div>}
 
       {isPending ? (
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
@@ -128,7 +104,7 @@ export default function EnrollmentActions({ enrollmentId, latestPayment }: Enrol
               color: "#92400e",
             }}
           >
-            ⚡ <strong>Demo Payment Simulation</strong> — No real money charged.
+            <strong>Demo Payment Simulation</strong> — No real money charged.
           </div>
           <button
             onClick={initiatePayment}

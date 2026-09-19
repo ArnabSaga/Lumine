@@ -1,8 +1,9 @@
-import Image from "next/image";
 import Link from "next/link";
 import { getCurrentSession } from "@/lib/server/guards/auth";
 import { getDashboardRouteForRole } from "@/lib/shared/role-routes";
 import { prisma } from "@/lib/server/db";
+import { PublicShell } from "@/components/ui/shells";
+import { GlassCard, PageHeader } from "@/components/ui/primitives";
 
 export const metadata = {
   title: "Luminedge — Language & Communication Courses",
@@ -30,116 +31,99 @@ export default async function HomePage() {
   });
 
   return (
-    <main className="min-h-screen" style={{ background: "var(--lum-neutral)", color: "var(--lum-secondary)", fontFamily: "var(--font-sans)" }}>
-      {/* Header */}
-      <header style={{ background: "#fff", borderBottom: "1px solid #e2e8f0" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
-          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-            <Image src="/logo/logo.png" alt="Luminedge" width={36} height={36} style={{ borderRadius: 8 }} />
-            <span style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", fontWeight: 800, color: "var(--lum-secondary)", letterSpacing: "-0.03em" }}>
-              Luminedge
-            </span>
-          </Link>
-          <nav style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            <Link href="/courses" style={{ fontSize: "0.875rem", fontWeight: 600, color: "#64748b", textDecoration: "none" }}>
-              Courses
-            </Link>
-            {session?.user && dashboardRoute ? (
-              <Link href={dashboardRoute} className="lum-btn-primary" style={{ padding: "0.5rem 1.25rem", fontSize: "0.8rem" }}>
-                My Dashboard →
+    <PublicShell>
+      <section className="lum-public-section pb-8 pt-16 sm:pt-20">
+        <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+          <div>
+            <p className="lum-eyebrow mb-5 text-[var(--lum-primary)]">Enrollments open</p>
+            <h1 className="font-display text-5xl font-black leading-[0.95] text-white sm:text-6xl lg:text-7xl">
+              Advance your learning.
+              <span className="block text-[var(--lum-primary)]">Build your next skill.</span>
+            </h1>
+            <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
+              Explore practical language and communication courses designed for focused learning, clear enrollment, and verified access.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link href="/courses" className="lum-btn-primary px-6 py-3 text-base">
+                Explore Courses
               </Link>
-            ) : (
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <Link href="/register" className="lum-btn-secondary" style={{ padding: "0.5rem 1rem", fontSize: "0.8rem" }}>
-                  Sign Up
+              {session?.user && dashboardRoute ? (
+                <Link href={dashboardRoute} className="lum-btn-secondary border-white/20 bg-white/10 px-6 py-3 text-base text-white hover:bg-white/20">
+                  My Dashboard
                 </Link>
-                <Link href="/student/login" className="lum-btn-primary" style={{ padding: "0.5rem 1rem", fontSize: "0.8rem" }}>
-                  Sign In
+              ) : (
+                <Link href="/student/login" className="lum-btn-secondary border-white/20 bg-white/10 px-6 py-3 text-base text-white hover:bg-white/20">
+                  Student Login
                 </Link>
-              </div>
-            )}
-          </nav>
-        </div>
-      </header>
+              )}
+            </div>
+          </div>
 
-      {/* Hero */}
-      <section style={{ background: "var(--lum-secondary)", color: "#fff", padding: "5rem 1.5rem 4rem" }}>
-        <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(250,206,57,0.15)", border: "1px solid rgba(250,206,57,0.3)", borderRadius: 9999, padding: "0.3rem 0.9rem", marginBottom: "1.5rem" }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--lum-primary)", display: "inline-block" }} />
-            <span style={{ color: "var(--lum-primary)", fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>Enrollments Open</span>
-          </div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2.25rem, 5vw, 3.5rem)", fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 1.1, margin: "0 0 1.25rem" }}>
-            Speak the World&apos;s Language.<br />
-            <span style={{ color: "var(--lum-primary)" }}>Start Today.</span>
-          </h1>
-          <p style={{ fontSize: "1.125rem", color: "#94a3b8", lineHeight: 1.7, maxWidth: 580, margin: "0 auto 2.5rem" }}>
-            Expert-led IELTS preparation and spoken English courses designed to get you results. Enroll online in minutes.
-          </p>
-          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/courses" className="lum-btn-primary" style={{ fontSize: "1rem", padding: "0.75rem 2rem" }}>
-              Browse Courses →
-            </Link>
-            <Link href="/register" className="lum-btn-secondary" style={{ fontSize: "1rem", padding: "0.75rem 2rem", background: "transparent", color: "#e2e8f0", borderColor: "#334155" }}>
-              Create Account
-            </Link>
-          </div>
+          <GlassCard dark className="relative overflow-hidden">
+            <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-[var(--lum-primary)]/20 blur-3xl" />
+            <p className="lum-eyebrow mb-4 text-[var(--lum-primary)]">Run 2R workflow</p>
+            <div className="space-y-4">
+              {["Browse a course", "Create student account", "Complete profile", "Pay demo checkout", "Show QR for approval", "Access approved course"].map((step, index) => (
+                <div key={step} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 p-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--lum-primary)] font-mono text-sm font-black text-slate-950">
+                    {index + 1}
+                  </span>
+                  <span className="font-semibold text-slate-100">{step}</span>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
         </div>
       </section>
 
-      {/* Course Cards */}
-      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "4rem 1.5rem" }}>
-        <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.75rem", fontWeight: 800, letterSpacing: "-0.03em", marginBottom: "0.5rem" }}>
-          Our Courses
-        </h2>
-        <p style={{ color: "#64748b", marginBottom: "2rem" }}>Choose the program that fits your goals</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.5rem" }}>
+      <section className="lum-public-section pt-8">
+        <PageHeader
+          light
+          eyebrow="Courses"
+          title="Practical programs with clear next steps"
+          description="Each course includes transparent pricing, ordered modules, and an enrollment path that keeps student access secure."
+          action={<Link href="/courses" className="lum-btn-primary">View all courses</Link>}
+        />
+        <div className="grid gap-5 md:grid-cols-3">
           {courses.map((course) => (
-            <div key={course.id} className="lum-card" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div>
-                <div style={{ display: "inline-flex", alignItems: "center", padding: "0.25rem 0.7rem", background: "rgba(250,206,57,0.1)", borderRadius: 6, marginBottom: "0.75rem" }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", fontWeight: 700, color: "#b45309", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                    {course._count.modules} modules
-                  </span>
-                </div>
-                <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 0.5rem" }}>
-                  {course.name}
-                </h3>
-                <p style={{ color: "#64748b", fontSize: "0.875rem", lineHeight: 1.6, margin: 0 }}>
-                  {course.description}
-                </p>
+            <GlassCard key={course.id} hover>
+              <div className="mb-4 inline-flex rounded-full bg-amber-100 px-3 py-1 font-mono text-xs font-black uppercase tracking-[0.08em] text-amber-800">
+                {course._count.modules} modules
               </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: "1rem", borderTop: "1px solid #f1f5f9" }}>
+              <h2 className="font-display text-2xl font-black text-slate-950">{course.name}</h2>
+              <p className="mt-3 min-h-[4.5rem] text-sm leading-6 text-slate-600">{course.description}</p>
+              <div className="mt-6 flex items-end justify-between gap-4 border-t border-slate-200 pt-5">
                 <div>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "1.25rem", fontWeight: 800, color: "var(--lum-secondary)" }}>
+                  <p className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">Course fee</p>
+                  <p className="mt-1 font-mono text-xl font-black text-slate-950">
                     {course.currency} {Number(course.price).toLocaleString()}
-                  </span>
+                  </p>
                 </div>
-                <Link href={`/courses/${course.slug}`} className="lum-btn-primary" style={{ fontSize: "0.8rem", padding: "0.5rem 1rem" }}>
-                  View Details →
+                <Link href={`/courses/${course.slug}`} className="lum-btn-primary px-4 py-2 text-sm">
+                  View
                 </Link>
               </div>
-            </div>
+            </GlassCard>
           ))}
         </div>
       </section>
 
-      {/* Staff Portal */}
-      <section style={{ background: "var(--lum-tertiary)", padding: "3rem 1.5rem" }}>
-        <div style={{ maxWidth: 600, margin: "0 auto", textAlign: "center" }}>
-          <p style={{ color: "#94a3b8", fontSize: "0.875rem", marginBottom: "1rem" }}>BDM · Accounts · Teacher</p>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 800, color: "#f1f5f9", marginBottom: "1rem" }}>
-            Staff Portal
-          </h2>
-          <Link href="/staff/login" className="lum-btn-primary" style={{ fontSize: "0.875rem" }}>
-            Sign in to Staff Workspace →
-          </Link>
-        </div>
+      <section className="lum-public-section pt-0">
+        <GlassCard dark>
+          <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <p className="lum-eyebrow mb-3 text-[var(--lum-primary)]">Staff verification</p>
+              <h2 className="font-display text-3xl font-black text-white">One QR connects payment verification to course access.</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                Students enroll and pay through the portal. Staff scan the QR, assign the correct teacher, and the exact approved course opens for learning.
+              </p>
+            </div>
+            <Link href="/staff/login" className="lum-btn-primary">
+              Staff Portal
+            </Link>
+          </div>
+        </GlassCard>
       </section>
-
-      <footer style={{ borderTop: "1px solid #e2e8f0", padding: "1.5rem", textAlign: "center", fontSize: "0.8rem", color: "#94a3b8" }}>
-        © {new Date().getFullYear()} Luminedge. All rights reserved.
-      </footer>
-    </main>
+    </PublicShell>
   );
 }

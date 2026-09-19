@@ -104,7 +104,15 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ enrollment }, { status: 201 });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Failed to create enrollment.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    if (err instanceof Error && err.message === "Course not found or inactive.") {
+      return NextResponse.json({ error: "Course not found." }, { status: 404 });
+    }
+
+    if (err instanceof Error && err.message === "Failed to create enrollment after retries.") {
+      return NextResponse.json({ error: "Could not create enrollment. Please try again." }, { status: 409 });
+    }
+
+    console.error("[student/enrollments]", err);
+    return NextResponse.json({ error: "Failed to create enrollment." }, { status: 500 });
   }
 }

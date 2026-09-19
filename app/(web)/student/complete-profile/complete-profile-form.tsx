@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { AuthShell } from "@/components/ui/shells";
+import { Alert } from "@/components/ui/primitives";
 
 export default function CompleteProfileForm({ courseHint }: { courseHint: string | null }) {
   const router = useRouter();
@@ -43,25 +45,17 @@ export default function CompleteProfileForm({ courseHint }: { courseHint: string
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "var(--lum-neutral)", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem", fontFamily: "var(--font-sans)" }}>
-      <div style={{ width: "100%", maxWidth: 520 }}>
-        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.75rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.375rem" }}>
-            Complete Your Profile
-          </h1>
-          <p style={{ color: "#64748b", fontSize: "0.875rem" }}>
-            We need a few more details to set up your student account.
-          </p>
-        </div>
-
-        <div className="lum-card" style={{ padding: "2rem" }}>
+    <AuthShell
+      title="Complete your profile"
+      description="Add the details required to create your session-owned student profile."
+    >
           {error && (
-            <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1.25rem", color: "#dc2626", fontSize: "0.875rem" }}>
-              {error}
+            <div className="mb-5">
+              <Alert tone="error">{error}</Alert>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.125rem" }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
               <label htmlFor="phone" className="lum-label">Phone Number <span style={{ color: "#ef4444" }}>*</span></label>
               <input id="phone" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)}
@@ -86,8 +80,6 @@ export default function CompleteProfileForm({ courseHint }: { courseHint: string
               {loading ? "Saving Profile..." : "Complete Profile →"}
             </button>
           </form>
-        </div>
-      </div>
-    </main>
+    </AuthShell>
   );
 }

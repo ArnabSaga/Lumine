@@ -11,11 +11,10 @@ import { finalizeVerifiedPayment } from "@/lib/server/services/payment.service";
 // FAILED/none creates one new attempt, SUCCEEDED returns already-paid).
 
 type CheckoutResolution =
-  | { action: "already-paid"; paymentId: string; providerPaymentId: string | null }
+  | { action: "already-paid"; paymentId: string }
   | {
       action: "finalize";
       paymentId: string;
-      providerPaymentId: string | null;
       amount: string;
       currency: string;
     }
@@ -85,7 +84,7 @@ async function resolveCheckoutPayment(
           const latestPayment = await tx.payment.findFirst({
             where: { enrollmentId: enrollment.id },
             orderBy: { createdAt: "desc" },
-            select: { id: true, providerPaymentId: true, amount: true, currency: true, status: true },
+            select: { id: true, amount: true, currency: true, status: true },
           });
 
           if (enrollment.status !== "PENDING_PAYMENT") {
@@ -93,7 +92,6 @@ async function resolveCheckoutPayment(
               return {
                 action: "already-paid",
                 paymentId: latestPayment.id,
-                providerPaymentId: latestPayment.providerPaymentId,
               };
             }
             return { action: "reject", status: 409, message: "This enrollment is not awaiting payment." };
@@ -105,7 +103,6 @@ async function resolveCheckoutPayment(
             return {
               action: "finalize",
               paymentId: latestPayment.id,
-              providerPaymentId: latestPayment.providerPaymentId,
               amount: latestPayment.amount.toString(),
               currency: latestPayment.currency,
             };
@@ -131,13 +128,12 @@ async function resolveCheckoutPayment(
               currency: enrollment.currencyAtEnrollment,
               status: "PENDING",
             },
-            select: { id: true, providerPaymentId: true, amount: true, currency: true },
+            select: { id: true, amount: true, currency: true },
           });
 
           return {
             action: "finalize",
             paymentId: payment.id,
-            providerPaymentId: payment.providerPaymentId,
             amount: payment.amount.toString(),
             currency: payment.currency,
           };
@@ -184,7 +180,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({
       success: true,
       alreadyPaid: true,
-      payment: { id: resolution.paymentId, providerPaymentId: resolution.providerPaymentId },
+      payment: { id: resolution.paymentId },
       isMock: true,
     });
   }
@@ -208,14 +204,14 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       success: true,
       verified: true,
       alreadyProcessed: finalizeRes.alreadyProcessed ?? false,
-      payment: { id: resolution.paymentId, providerPaymentId: resolution.providerPaymentId },
+      payment: { id: resolution.paymentId },
       isMock: true,
       mockNotice: "DEMO PAYMENT SIMULATION — Automatically verified on server.",
     });
   }
 
   return NextResponse.json({
-    payment: { id: resolution.paymentId, providerPaymentId: resolution.providerPaymentId },
+    payment: { id: resolution.paymentId },
     checkoutUrl: null,
     isMock: false,
   });

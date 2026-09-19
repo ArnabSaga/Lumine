@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/server/db";
 import { getCurrentSession } from "@/lib/server/guards/auth";
 import { getDashboardRouteForRole } from "@/lib/shared/role-routes";
+import { PublicShell } from "@/components/ui/shells";
+import { GlassCard } from "@/components/ui/primitives";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -55,104 +57,74 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ s
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "var(--lum-neutral)", fontFamily: "var(--font-sans)" }}>
-      <header style={{ background: "#fff", borderBottom: "1px solid #e2e8f0" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
-          <Link href="/courses" style={{ textDecoration: "none", color: "#64748b", fontSize: "0.875rem", fontWeight: 600 }}>
-            ← All Courses
-          </Link>
-          {isStaff ? (
-            <Link href={staffDashboardUrl} className="lum-btn-secondary" style={{ fontSize: "0.85rem", padding: "0.5rem 1.25rem" }}>
-              Staff Dashboard →
-            </Link>
-          ) : (
-            <Link href={enrollUrl} className="lum-btn-primary" style={{ fontSize: "0.85rem", padding: "0.5rem 1.25rem" }}>
-              Enroll Now →
-            </Link>
-          )}
-        </div>
-      </header>
+    <PublicShell>
+      <section className="lum-public-section">
+        <Link href="/courses" className="mb-6 inline-flex text-sm font-bold text-slate-300 hover:text-[var(--lum-primary)]">
+          Back to courses
+        </Link>
 
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: "3rem 1.5rem" }}>
-        {/* Hero */}
-        <div style={{ background: "var(--lum-secondary)", color: "#fff", borderRadius: "1.25rem", padding: "2.5rem", marginBottom: "2rem" }}>
-          <div style={{ display: "inline-flex", marginBottom: "1rem", padding: "0.25rem 0.75rem", background: "rgba(250,206,57,0.15)", borderRadius: 6 }}>
-            <span style={{ color: "var(--lum-primary)", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-              {course.modules.length} Modules
-            </span>
+        <div className="grid gap-8 lg:grid-cols-[1fr_22rem] lg:items-start">
+          <div>
+            <GlassCard dark className="mb-6">
+              <p className="lum-eyebrow mb-4 text-[var(--lum-primary)]">{course.modules.length} modules</p>
+              <h1 className="font-display text-5xl font-black leading-none text-white">{course.name}</h1>
+              <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300">{course.description}</p>
+            </GlassCard>
+
+            <GlassCard>
+              <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="lum-eyebrow mb-2">Curriculum</p>
+                  <h2 className="font-display text-2xl font-black text-slate-950">What you will cover</h2>
+                </div>
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-[0.08em] text-blue-700">
+                  {course.modules.length} modules
+                </span>
+              </div>
+              <div className="space-y-3">
+                {course.modules.map((mod) => (
+                  <div key={mod.id} className="flex gap-4 rounded-2xl border border-slate-200 bg-white/75 p-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--lum-primary)] font-mono text-sm font-black text-slate-950">
+                      {mod.order}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-950">{mod.title}</h3>
+                      {mod.description && <p className="mt-1 text-sm leading-6 text-slate-600">{mod.description}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </GlassCard>
           </div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "2.25rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.75rem" }}>
-            {course.name}
-          </h1>
-          <p style={{ color: "#94a3b8", fontSize: "1rem", lineHeight: 1.7, maxWidth: 560, marginBottom: "2rem" }}>
-            {course.description}
-          </p>
-          <div style={{ display: "flex", alignItems: "center", gap: "2rem", flexWrap: "wrap" }}>
-            <div>
-              <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Course Fee</p>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "1.75rem", fontWeight: 900, color: "var(--lum-primary)" }}>
-                {course.currency} {Number(course.price).toLocaleString()}
-              </span>
-            </div>
+
+          <GlassCard className="sticky top-28">
+            <p className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">Course fee</p>
+            <p className="mt-2 font-mono text-4xl font-black text-slate-950">
+              {course.currency} {Number(course.price).toLocaleString()}
+            </p>
+            <p className="mt-4 text-sm leading-6 text-slate-600">
+              Enroll securely, complete the demo checkout, then show your verification QR to staff for approval.
+            </p>
             {isStaff ? (
-              <Link href={staffDashboardUrl} className="lum-btn-secondary" style={{ fontSize: "1rem", padding: "0.75rem 2rem" }}>
-                Open Staff Dashboard →
+              <Link href={staffDashboardUrl} className="lum-btn-secondary mt-6 w-full">
+                Open Staff Dashboard
               </Link>
             ) : (
-              <Link href={enrollUrl} className="lum-btn-primary" style={{ fontSize: "1rem", padding: "0.75rem 2rem" }}>
-                Enroll Now →
+              <Link href={enrollUrl} className="lum-btn-primary mt-6 w-full">
+                Enroll Now
               </Link>
             )}
-          </div>
+            {!session?.user && !isStaff && (
+              <p className="mt-4 text-center text-sm text-slate-500">
+                Already registered?{" "}
+                <Link href={`/student/login?course=${encodeURIComponent(course.slug)}`} className="font-bold text-amber-700">
+                  Sign in
+                </Link>
+              </p>
+            )}
+          </GlassCard>
         </div>
-
-        {/* Syllabus */}
-        <div className="lum-card">
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", fontWeight: 800, marginBottom: "1.25rem" }}>
-            Course Syllabus & Curriculum
-          </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {course.modules.map((mod) => (
-              <div key={mod.id} style={{ display: "flex", gap: "1rem", padding: "0.875rem", background: "#f8fafc", borderRadius: "0.75rem" }}>
-                <div style={{ flexShrink: 0, width: 32, height: 32, borderRadius: "50%", background: "var(--lum-primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", fontWeight: 800, color: "var(--lum-secondary)" }}>
-                    {mod.order}
-                  </span>
-                </div>
-                <div>
-                  <p style={{ fontWeight: 700, fontSize: "0.9rem", margin: "0 0 0.25rem" }}>{mod.title}</p>
-                  {mod.description && (
-                    <p style={{ color: "#64748b", fontSize: "0.8rem", margin: 0 }}>{mod.description}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* CTA */}
-        <div style={{ textAlign: "center", marginTop: "2.5rem" }}>
-          {isStaff ? (
-            <Link href={staffDashboardUrl} className="lum-btn-secondary" style={{ fontSize: "1rem", padding: "0.875rem 2.5rem" }}>
-              Staff Workspace →
-            </Link>
-          ) : (
-            <>
-              <Link href={enrollUrl} className="lum-btn-primary" style={{ fontSize: "1rem", padding: "0.875rem 2.5rem" }}>
-                Enroll in {course.name} →
-              </Link>
-              {!session?.user && (
-                <p style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "#94a3b8" }}>
-                  Already have an account?{" "}
-                  <Link href={`/student/login?course=${encodeURIComponent(course.slug)}`} style={{ color: "var(--lum-primary)", textDecoration: "none", fontWeight: 600 }}>
-                    Sign in
-                  </Link>
-                </p>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </main>
+      </section>
+    </PublicShell>
   );
 }
