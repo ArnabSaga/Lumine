@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Html5Qrcode } from "html5-qrcode";
+
+const QR_READER_ELEMENT_ID = "qr-reader";
 
 interface ScanResult {
   enrollment: {
@@ -38,11 +41,13 @@ export default function QrScanner({ teachers }: ScannerProps) {
   // Camera State
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
-  async function executeScan(tokenToScan: string) {
+  const stopCamera = useCallback(() => {
+    setCameraActive(false);
+  }, []);
+
+  const executeScan = useCallback(async (tokenToScan: string) => {
     if (!tokenToScan.trim()) return;
     setScanning(true);
     setError(null);
@@ -67,12 +72,12 @@ export default function QrScanner({ teachers }: ScannerProps) {
       }
       setResult(data as ScanResult);
       // Stop camera once scanned successfully
-      stopCamera();
+      setCameraActive(false);
     } catch {
       setScanning(false);
       setError("Network error occurred while scanning QR code.");
     }
-  }
+  }, []);
 
   async function handleManualScan(e: React.FormEvent) {
     e.preventDefault();
@@ -81,73 +86,70 @@ export default function QrScanner({ teachers }: ScannerProps) {
 
   async function startCamera() {
     setCameraError(null);
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCameraError("Camera access is not supported in this browser environment. Please use manual token input.");
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setCameraError("Camera access is not supported in this browser. Please use manual token input below.");
       return;
     }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      setCameraActive(true);
-
-      // Setup barcode detector if supported
-      if ("BarcodeDetector" in window) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const barcodeDetector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
-        scanIntervalRef.current = setInterval(async () => {
-          if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-            try {
-              const barcodes = await barcodeDetector.detect(videoRef.current);
-              if (barcodes.length > 0 && barcodes[0].rawValue) {
-                const detectedVal = barcodes[0].rawValue;
-                setToken(detectedVal);
-                await executeScan(detectedVal);
-              }
-            } catch {
-              // Ignore frame detection error
-            }
-          }
-        }, 500);
-      }
-    } catch (err: unknown) {
-      console.warn("Camera error:", err);
-      const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("Permission") || msg.includes("NotAllowedError") || msg.includes("denied")) {
-        setCameraError("Camera permission was denied. Please allow camera access in your browser settings or use manual token input.");
-      } else {
-        setCameraError("Camera device unavailable or not found. Please use manual token input.");
-      }
-      setCameraActive(false);
-    }
+    // Renders the reader element; the effect below initializes the decoder.
+    setCameraActive(true);
   }
 
-  function stopCamera() {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-      scanIntervalRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    setCameraActive(false);
-  }
-
+  // Initialize / tear down the QR decoder whenever camera mode changes.
   useEffect(() => {
+    if (!cameraActive) {
+      return;
+    }
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const scanner = new Html5Qrcode(QR_READER_ELEMENT_ID);
+        scannerRef.current = scanner;
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          async (decodedText) => {
+            if (cancelled || !decodedText) return;
+            setToken(decodedText);
+            setCameraActive(false);
+            await executeScan(decodedText);
+          },
+          () => {
+            // Per-frame decode miss — ignore and keep scanning.
+          }
+        );
+      } catch (err: unknown) {
+        if (cancelled) return;
+        const message = err instanceof Error ? `${err.name} ${err.message}` : "";
+        if (/NotAllowed|Permission|denied/i.test(message)) {
+          setCameraError("Camera permission was denied. Please allow camera access in your browser settings or use manual token input below.");
+        } else {
+          setCameraError("Camera device unavailable or QR decoding failed to start. Please use manual token input below.");
+        }
+        setCameraActive(false);
+      }
+    })();
+
     return () => {
-      stopCamera();
+      cancelled = true;
+      const scanner = scannerRef.current;
+      scannerRef.current = null;
+      if (scanner) {
+        scanner
+          .stop()
+          .catch(() => {
+            // Already stopped — safe to ignore.
+          })
+          .finally(() => {
+            try {
+              scanner.clear();
+            } catch {
+              // Element already removed — safe to ignore.
+            }
+          });
+      }
     };
-  }, []);
+  }, [cameraActive, executeScan]);
 
   async function handleApprove() {
     if (!result || !selectedTeacher) return;
@@ -196,18 +198,12 @@ export default function QrScanner({ teachers }: ScannerProps) {
                 style={{
                   position: "relative",
                   width: "100%",
-                  height: 220,
                   borderRadius: "0.75rem",
                   overflow: "hidden",
                   background: "#000",
                 }}
               >
-                <video
-                  ref={videoRef}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  playsInline
-                  muted
-                />
+                <div id={QR_READER_ELEMENT_ID} style={{ width: "100%" }} />
                 <div
                   style={{
                     position: "absolute",

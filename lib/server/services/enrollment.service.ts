@@ -1,10 +1,11 @@
 import "server-only";
 
 import { prisma } from "@/lib/server/db";
-import { EnrollmentStatus, PaymentStatus, UserRole } from "@/generated/prisma/client";
+import { EnrollmentStatus, PaymentStatus, Prisma, UserRole } from "@/generated/prisma/client";
 import { generateReference } from "./qr.service";
 
 const MAX_REFERENCE_RETRIES = 5;
+const MAX_CREATE_ATTEMPTS = 3;
 
 /**
  * Generates a unique enrollment reference with collision retry.
@@ -41,56 +42,78 @@ export async function createEnrollment(params: {
     throw new Error("Course not found or inactive.");
   }
 
-  // Check if existing enrollment already exists
-  const existing = await prisma.enrollment.findUnique({
-    where: { studentId_courseId: { studentId, courseId: course.id } },
-    select: { id: true, reference: true },
-  });
-
-  if (existing) {
-    return { enrollment: existing };
-  }
-
-  try {
-    return await prisma.$transaction(async (tx) => {
-      const reference = await generateEnrollmentReference();
-
-      const enrollment = await tx.enrollment.create({
-        data: {
-          reference,
-          studentId,
-          courseId: course.id,
-          priceAtEnrollment: course.price,
-          currencyAtEnrollment: course.currency,
-          status: EnrollmentStatus.PENDING_PAYMENT,
-        },
-        select: { id: true, reference: true },
-      });
-
-      await tx.enrollmentStatusHistory.create({
-        data: {
-          enrollmentId: enrollment.id,
-          fromStatus: null,
-          toStatus: EnrollmentStatus.PENDING_PAYMENT,
-          changedById: null,
-        },
-      });
-
-      return { enrollment };
-    });
-  } catch (err: unknown) {
-    // Handle concurrent creation race: if duplicate unique constraint hit, reload existing
-    const duplicate = await prisma.enrollment.findUnique({
+  // Check if existing enrollment already exists.
+  // Reference collisions and duplicate enrollments are handled as separate cases.
+  for (let attempt = 1; attempt <= MAX_CREATE_ATTEMPTS; attempt++) {
+    const existing = await prisma.enrollment.findUnique({
       where: { studentId_courseId: { studentId, courseId: course.id } },
       select: { id: true, reference: true },
     });
 
-    if (duplicate) {
-      return { enrollment: duplicate };
+    if (existing) {
+      return { enrollment: existing };
     }
 
-    throw err;
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const reference = generateReference();
+
+        const enrollment = await tx.enrollment.create({
+          data: {
+            reference,
+            studentId,
+            courseId: course.id,
+            priceAtEnrollment: course.price,
+            currencyAtEnrollment: course.currency,
+            status: EnrollmentStatus.PENDING_PAYMENT,
+          },
+          select: { id: true, reference: true },
+        });
+
+        await tx.enrollmentStatusHistory.create({
+          data: {
+            enrollmentId: enrollment.id,
+            fromStatus: null,
+            toStatus: EnrollmentStatus.PENDING_PAYMENT,
+            changedById: null,
+          },
+        });
+
+        return { enrollment };
+      });
+    } catch (err: unknown) {
+      const isUniqueViolation =
+        err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
+      if (!isUniqueViolation) {
+        throw err;
+      }
+      const target =
+        err instanceof Prisma.PrismaClientKnownRequestError
+          ? (err.meta?.["target"] as unknown)
+          : undefined;
+      if (Array.isArray(target) && target.includes("reference")) {
+        // Human-readable reference collision: retry with a fresh reference.
+        if (attempt === MAX_CREATE_ATTEMPTS) {
+          throw err;
+        }
+        continue;
+      }
+      // studentId+courseId collision (concurrent duplicate request):
+      // load and return the already-existing enrollment.
+      const duplicate = await prisma.enrollment.findUnique({
+        where: { studentId_courseId: { studentId, courseId: course.id } },
+        select: { id: true, reference: true },
+      });
+
+      if (duplicate) {
+        return { enrollment: duplicate };
+      }
+
+      throw err;
+    }
   }
+
+  throw new Error("Failed to create enrollment after retries.");
 }
 
 /**

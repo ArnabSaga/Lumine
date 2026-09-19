@@ -20,7 +20,8 @@ export const mockPaymentProvider: PaymentProvider = {
   },
 
   async verifyWebhookPayload(payload: unknown) {
-    // Mock webhook payload: { providerPaymentId, amount, currency }
+    // Mock webhook payload: { providerPaymentId, amount (decimal string), currency, success }
+    // success must be explicitly true; anything else never finalizes.
     if (
       typeof payload !== "object" ||
       payload === null ||
@@ -31,10 +32,20 @@ export const mockPaymentProvider: PaymentProvider = {
       return null;
     }
     const p = payload as Record<string, unknown>;
+    const rawAmount = p.amount;
+    const amountStr =
+      typeof rawAmount === "string"
+        ? rawAmount
+        : typeof rawAmount === "number"
+          ? String(rawAmount)
+          : null;
+    if (amountStr === null || amountStr.trim() === "") {
+      return null;
+    }
     return {
       providerPaymentId: String(p.providerPaymentId),
-      success: true,
-      amount: Number(p.amount),
+      success: p.success === true,
+      amount: amountStr,
       currency: String(p.currency),
     };
   },

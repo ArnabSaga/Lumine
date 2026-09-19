@@ -21,6 +21,8 @@ context/progress-tracker.md
 
 If a product requirement conflicts with an implementation detail, the product requirement should be preserved unless the user explicitly changes the scope.
 
+Historical note: an earlier Admission/RegistrationLink design (BDM-owned QR registration links, `REGISTERED → PENDING_ACCOUNTS_APPROVAL → ACCOUNTS_APPROVED → ASSIGNED_TO_TEACHER`) was superseded by the Run 2R Enrollment architecture below. No Admission/RegistrationLink runtime code remains.
+
 ---
 
 # 2. Product Summary
@@ -32,33 +34,40 @@ The system manages the journey of a student from first registration through BDM 
 The core business flow is:
 
 ```text
-Student scans BDM QR
+Student browses public catalog
         ↓
-Student submits registration
+Student signs up (role forced to STUDENT)
         ↓
-Student is linked to the correct BDM
+Student completes profile (session-owned)
         ↓
-BDM completes admission details
+Student explicitly confirms enrollment
         ↓
-Pending Accounts Approval
+PENDING_PAYMENT
         ↓
-Accounts verifies payment/admission
+Server-controlled demo payment
         ↓
-Accounts approves
+PAYMENT_VERIFIED + stable Enrollment QR
         ↓
-Assigned Teacher gains access
+Staff (BDM/Accounts) scans QR
         ↓
-Teacher sees Student + Course + Course Modules
+Staff assigns Teacher and approves
+        ↓
+APPROVED
+        ↓
+Student gains exact course access
+Assigned Teacher gains curriculum access
 ```
 
 The most important product requirements are:
 
 - correct role separation
 - secure backend authorization
-- correct ownership of students
+- session-owned profiles and enrollments
 - controlled workflow transitions
 - minimal data exposure by role
-- reliable QR-to-BDM association
+- reliable payment verification (Decimal, fail-closed webhook)
+- concurrency-safe checkout/finalize/approve
+- stable opaque enrollment QR
 - clean and responsive dashboards
 
 ---
@@ -85,20 +94,25 @@ What course modules should the Teacher teach?
 
 The MVP is successful when all of the following are true:
 
-1. A BDM has a unique QR-based student registration link.
-2. A student can register through that link without logging in.
-3. The student is automatically linked to the correct BDM.
-4. Only that BDM can access the submitted student.
-5. The BDM can add course, payment, class-start, and Teacher information.
-6. The admission moves to `PENDING_ACCOUNTS_APPROVAL`.
-7. Accounts can see only the information required for verification.
-8. Accounts can approve the admission.
-9. A Teacher cannot see the student before Accounts approval.
-10. After approval, only the assigned Teacher can access that student.
-11. The Teacher can see the student's course and course modules.
-12. Role and ownership restrictions are enforced on the backend/API level.
-13. The application is usable on desktop and mobile.
-14. The production build succeeds and the core workflow can be demonstrated end-to-end.
+1. Each verified enrollment has one stable, opaque verification QR.
+2. A student can sign up without choosing a role (server forces STUDENT).
+3. The student profile belongs only to the authenticated student.
+4. The student explicitly confirms each enrollment (no auto-mutation on GET).
+5. Duplicate/concurrent enrollment requests yield exactly one enrollment.
+6. Payment is simulated entirely on the server with Decimal verification.
+7. The webhook fails closed (503 without secret, 401 on bad signature) with zero mutation before auth.
+8. A provider failure report (`success=false`) or wrong amount/currency never finalizes.
+9. Concurrent checkouts never leave duplicate active PENDING payments.
+10. Staff scan returns only verification-safe fields.
+11. An unpaid enrollment cannot be approved.
+12. Approval requires a valid QR token and a TEACHER-role assignee.
+13. A Teacher cannot see the enrollment before approval.
+14. After approval, only the assigned Teacher can access that enrollment.
+15. The Teacher can see the enrollment's course and course modules.
+16. The student can access exactly the approved course curriculum.
+17. Role and ownership restrictions are enforced on the backend/API level.
+18. The application is usable on desktop and mobile.
+19. The production build succeeds and the core workflow can be demonstrated end-to-end.
 
 ---
 
@@ -108,27 +122,28 @@ The MVP is successful when all of the following are true:
 
 ### Description
 
-A prospective/new student who receives a registration QR code from a BDM.
+A prospective/new student who browses the public course catalog and enrolls.
 
 ### Primary Need
 
-Submit registration information quickly without creating an account or learning the internal system.
+Browse courses, sign up, and enroll quickly with explicit confirmations and visible payment/approval status.
 
 ### Student Responsibilities
 
-- scan/open BDM registration link
-- complete registration form
-- submit personal/educational information
+- browse public catalog and course detail
+- sign up (role forced to STUDENT)
+- complete profile (phone, address, education, optional notes)
+- explicitly confirm course enrollments
+- complete the server-controlled demo payment
+- view verification QR after payment
+- access approved course curriculum
 
 ### Student Does Not Need
 
-- login
-- dashboard
-- workflow actions
-- Accounts approval access
+- role selection at signup
+- staff scanner access
+- approval actions
 - Teacher assignment controls
-
-Student authentication is not required for the MVP.
 
 ---
 
@@ -136,35 +151,30 @@ Student authentication is not required for the MVP.
 
 ### Description
 
-A Business Development Manager responsible for bringing and processing students.
+A Business Development staff member sharing the staff verification surface.
 
 ### Primary Need
 
-Receive registrations generated through their own QR code and complete the admission setup.
+Verify paid enrollments via QR scan and approve them with a Teacher assignment.
 
 ### BDM Responsibilities
 
-- access own dashboard
-- access own QR/registration link
-- view students registered through own QR
-- review full submitted student information
-- assign a course
-- enter admission amount
-- enter paid amount
-- set class starting date
+- access staff scanner
+- scan enrollment QR (camera or manual token)
+- review privacy-minimized verification data
 - assign a Teacher
-- submit admission for Accounts approval
-- monitor current admission status
+- approve verified enrollments
+- access BDM dashboard
 
 ### BDM Restrictions
 
 A BDM must not:
 
-- see another BDM's students
-- modify another BDM's students
-- approve Accounts workflow
-- bypass the admission workflow
-- manually set arbitrary admission statuses
+- see student PII beyond the verification DTO
+- approve unpaid enrollments
+- assign non-teacher users
+- bypass the payment workflow
+- manually set arbitrary enrollment statuses
 
 ---
 
@@ -172,36 +182,36 @@ A BDM must not:
 
 ### Description
 
-Finance/accounts staff responsible for validating admission/payment information.
+Finance/accounts staff sharing the staff verification surface.
 
 ### Primary Need
 
-See only the financial/admission information necessary to approve or reject/process an admission.
+Verify paid enrollments and approve them for course/teacher access.
 
 ### Accounts Responsibilities
 
-- access own dashboard
-- view admissions awaiting approval
+- access staff scanner
+- scan enrollment QR (camera or manual token)
 - see student name and email
-- see course
-- see admission amount
-- see paid amount
-- approve valid admissions
+- see course and reference
+- see payment state, amount, and currency
+- approve valid verified enrollments
 
 ### Accounts Restrictions
 
 Accounts must not receive unnecessary student information such as:
 
-- full address
+- address
+- phone
 - educational background
 - additional personal notes
 
 Accounts must not:
 
-- assign Teacher
-- modify BDM ownership
-- modify student registration profile
-- access Teacher-only learning data unless separately required
+- assign non-teacher users
+- approve unpaid enrollments
+- modify student profiles
+- access data beyond the verification DTO
 
 ---
 
@@ -228,12 +238,12 @@ See only approved students assigned to them and understand the course requiremen
 
 Teacher must not:
 
-- see students assigned to another Teacher
-- see students before Accounts approval
-- view BDM-only personal/educational details unless explicitly needed
-- approve admissions
+- see enrollments assigned to another Teacher
+- see enrollments before approval
+- view student PII beyond name/email
+- approve enrollments
 - change payment information
-- change BDM ownership
+- change enrollment ownership
 
 ---
 
@@ -243,24 +253,22 @@ Teacher must not:
 
 The MVP includes:
 
-- role-based authentication for BDM, Accounts, Teacher
+- role-based authentication (forced STUDENT signup, seeded staff)
 - secure backend/API role authorization
 - secure resource-level authorization
-- unique BDM QR registration links
-- public student registration
-- automatic BDM association from QR token
-- BDM student dashboard
-- BDM admission completion
-- course assignment
-- payment information
-- class start date
-- Teacher assignment
-- Accounts pending-approval dashboard
-- Accounts approval action
-- Teacher assigned-student dashboard
-- Teacher student/course detail
-- course modules
-- admission status transitions
+- public course catalog
+- student profile (session-owned)
+- explicit enrollment confirmation
+- server-controlled demo payment
+- fail-closed payment webhook
+- stable opaque enrollment QR
+- camera QR scanner with manual fallback
+- staff verification with privacy-minimized DTO
+- Teacher assignment + approval (concurrency-safe)
+- exact approved-course access for students
+- assigned-approved-only access for teachers
+- course modules (data-driven, ordered)
+- enrollment status transitions (backend-owned)
 - backend validation
 - responsive interface
 - loading/error/empty states
@@ -318,142 +326,138 @@ The MVP does not require:
 
 # 7. Core Workflow
 
-## 7.1 Registration
+## 7.1 Enrollment
 
 ```text
-BDM provides QR
+Student browses catalog
 ↓
-Student scans QR
+Student signs up (role forced STUDENT)
 ↓
-System validates registration token
+Student completes profile (session-owned)
 ↓
-Registration form opens
+Student explicitly confirms enrollment
 ↓
-Student submits form
+System snapshots course price/currency
 ↓
-System resolves token → BDM
+Enrollment created
 ↓
-Student created
+Status = PENDING_PAYMENT
 ↓
-Admission created
-↓
-Status = REGISTERED
-↓
-Student becomes visible to owning BDM
+Initial status-history row written (same transaction)
 ```
 
-The Student must never supply or choose the trusted BDM identifier directly.
+Enrollment is never created implicitly by page views. Concurrent duplicate
+requests yield exactly one enrollment.
 
 ---
 
-## 7.2 BDM Admission Processing
+## 7.2 Demo Payment
 
 ```text
-BDM opens own student
+Student triggers checkout
 ↓
-Reviews submitted registration
+Serializable resolution:
+  no payment → create PENDING attempt
+  latest FAILED → new attempt
+  latest PENDING → resume existing (no duplicate)
+  latest SUCCEEDED → already-paid
 ↓
-Selects Course
+Server finalizes verified payment (mock provider)
 ↓
-Enters Admission Amount
+Decimal amount + currency verified
 ↓
-Enters Paid Amount
+Status = PAYMENT_VERIFIED
 ↓
-Selects Class Starting Date
-↓
-Assigns Teacher
-↓
-Submits admission
-↓
-Status = PENDING_ACCOUNTS_APPROVAL
+Stable Enrollment QR created (once, never rotates)
 ```
 
-The BDM cannot submit an incomplete or invalid admission.
+The client never supplies amounts. Webhook callbacks authenticate via secret
++ signature and require `success === true` before any DB work.
 
 ---
 
-## 7.3 Accounts Approval
+## 7.3 Staff Verification & Approval
 
 ```text
-Accounts opens pending admission
+Staff opens scanner
 ↓
-Reviews allowed information
+Camera decode or manual token
 ↓
-Verifies payment/admission
+System resolves token → Enrollment (+ privacy-minimized DTO)
 ↓
-Clicks Approve
+Staff reviews verification-safe data
 ↓
-Approval metadata recorded
+Staff selects Teacher
 ↓
-Status = ACCOUNTS_APPROVED
+Staff approves
 ↓
-Teacher access is enabled
+System validates PAYMENT_VERIFIED + SUCCEEDED payment + QR proof + TEACHER role
 ↓
-Status = ASSIGNED_TO_TEACHER
+Status = APPROVED (exactly once under concurrency)
 ```
 
-The implementation may move through the two approval/assignment states in one backend transaction as long as the status history remains coherent.
+Unpaid enrollments, wrong QR tokens, and non-teacher assignees are rejected.
 
 ---
 
-## 7.4 Teacher Access
+## 7.4 Student + Teacher Access
+
+```text
+Student opens course page
+↓
+APPROVED exact course → curriculum modules visible
+otherwise → restricted page
+```
 
 ```text
 Teacher logs in
 ↓
-System returns only assigned + approved students
+System returns only assigned + APPROVED enrollments
 ↓
-Teacher opens student
+Teacher opens enrollment
 ↓
-Teacher sees Student + Course
-↓
-Teacher sees Course Modules
+Teacher sees student name/email + course + ordered modules
 ```
 
-Teacher access is prohibited before Accounts approval.
+Teacher access is prohibited before approval. Cross-teacher access is a safe 404.
 
 ---
 
-# 8. Admission Status Model
+# 8. Enrollment Status Model
 
 Canonical statuses:
 
 ```text
-REGISTERED
-PENDING_ACCOUNTS_APPROVAL
-ACCOUNTS_APPROVED
-ASSIGNED_TO_TEACHER
+PENDING_PAYMENT
+PAYMENT_VERIFIED
+APPROVED
 ```
 
 Canonical order:
 
 ```text
-REGISTERED
+PENDING_PAYMENT
     ↓
-PENDING_ACCOUNTS_APPROVAL
+PAYMENT_VERIFIED
     ↓
-ACCOUNTS_APPROVED
-    ↓
-ASSIGNED_TO_TEACHER
+APPROVED
 ```
 
 ## 8.1 Status Ownership
 
-### REGISTERED
+### PENDING_PAYMENT
 
-Created automatically when Student registration succeeds.
+Created automatically when the student explicitly confirms an enrollment.
 
-### PENDING_ACCOUNTS_APPROVAL
+### PAYMENT_VERIFIED
 
-Created automatically when the owning BDM submits complete admission details.
+Created only by server-controlled payment finalization (demo checkout or
+verified webhook) with Decimal amount + currency match.
 
-### ACCOUNTS_APPROVED
+### APPROVED
 
-Created only by a valid Accounts approval action.
-
-### ASSIGNED_TO_TEACHER
-
-Represents the Teacher-visible state after approval.
+Created only by a valid staff approval action (BDM/ACCOUNTS role,
+PAYMENT_VERIFIED state, SUCCEEDED payment, QR proof, TEACHER assignee).
 
 ---
 
@@ -464,13 +468,13 @@ The system must reject invalid direct transitions.
 Examples:
 
 ```text
-REGISTERED → ACCOUNTS_APPROVED
-REGISTERED → ASSIGNED_TO_TEACHER
-PENDING_ACCOUNTS_APPROVAL → REGISTERED
-Teacher action → ACCOUNTS_APPROVED
+PENDING_PAYMENT → APPROVED
+any state → arbitrary client-set status
+unpaid enrollment → APPROVED
 ```
 
-The client must not have a generic "set status" capability.
+The client must not have a generic "set status" capability. Duplicate
+finalize/approve calls resolve to idempotent success or safe `409`.
 
 ---
 
@@ -517,33 +521,31 @@ A user must not gain access to another role's protected API merely by typing its
 
 ---
 
-# FR-003 — BDM Registration Link
+# FR-003 — Enrollment Verification QR
 
 ## Description
 
-A BDM must have an unpredictable registration token/link that can be represented as a QR code.
+Each verified enrollment has one stable, opaque verification token that can be rendered as a QR code for staff scanning.
 
 ## Acceptance Criteria
 
-- registration token is unique
-- token is not a simple BDM ID
-- link resolves to the owning BDM
-- inactive/expired/invalid link cannot create a Student
-- BDM can see/copy the registration link
-- BDM can see the QR representation
+- QR token is unique and high-entropy
+- token is opaque (no IDs, email, or PII)
+- token never rotates on payment retries or duplicate webhooks
+- revoked/unknown tokens resolve to safe 404
+- student sees the QR after payment verification
+- staff can scan via camera or manual token input
 
 ---
 
-# FR-004 — Public Student Registration
+# FR-004 — Public Signup, Profile & Enrollment
 
 ## Description
 
-A Student can submit a registration form through a valid BDM registration link.
+A Student signs up publicly, completes a session-owned profile, and explicitly confirms course enrollments.
 
-## Required Fields
+## Required Fields (profile)
 
-- Full Name
-- Email
 - Phone Number
 - Address
 - Educational Information
@@ -554,213 +556,214 @@ A Student can submit a registration form through a valid BDM registration link.
 
 ## Acceptance Criteria
 
-- no login required
-- token must be valid before submission succeeds
-- Student is linked to BDM resolved from the token
-- Student cannot choose/override trusted BDM ownership
-- successful registration creates a Student
-- successful registration creates an Admission
-- initial Admission status is `REGISTERED`
-- owning BDM sees the Student
-- other BDMs do not see the Student
+- signup requires no role selection; server forces STUDENT
+- staff cannot self-register as BDM/ACCOUNTS/TEACHER
+- `role`/`userId` in profile payloads are ignored
+- profile belongs only to the authenticated student
+- `?course=slug` survives signup/login/profile redirects
+- enrollment is created only by explicit confirmation (never on page view)
+- successful creation writes the initial status history row atomically
+- initial Enrollment status is `PENDING_PAYMENT`
+- concurrent duplicate requests yield exactly one enrollment
 
 ---
 
-# FR-005 — BDM Student List
+# FR-005 — Student Enrollment List
 
 ## Description
 
-Each BDM sees students registered through their own registration link(s).
+Each student sees only their own enrollments with payment status and verification QR.
 
-## Minimum List Fields
+## Minimum Item Fields
 
-- Student Name
-- Course or empty state
-- Assigned Teacher or empty state
+- Course name
+- Reference
+- Price
 - Status
+- Assigned Teacher (when approved)
+- Verification QR (when verified/approved)
 
 ## Acceptance Criteria
 
-- BDM sees own Students
-- BDM does not see other BDM Students
-- direct API request for another BDM Student is rejected/not returned
+- student sees own enrollments only
+- another student's enrollments are unreachable (safe 404)
+- direct API access cannot bypass ownership
 
 ---
 
-# FR-006 — BDM Student Detail
+# FR-006 — Staff Scan
 
 ## Description
 
-The owning BDM can view the full registration information submitted by the Student.
+BDM/Accounts staff resolve an enrollment QR token into a privacy-minimized verification view.
 
 ## Acceptance Criteria
 
-- only owning BDM can access
-- full registration profile is available to owning BDM
-- other BDM cannot access by guessed/direct URL
+- valid token returns verification-safe DTO only
+- address, phone, education, additionalInfo are never included
+- tampered/revoked tokens return safe 404
+- STUDENT and TEACHER roles are rejected (403)
+- unauthenticated requests are rejected (401)
 
 ---
 
-# FR-007 — BDM Admission Submission
+# FR-007 — Server-Controlled Payment
 
 ## Description
 
-The owning BDM completes admission information.
+Demo payment is simulated entirely on the server; the client never supplies amounts.
 
-## Required Fields
+## Required Behavior
 
-- Course
-- Admission Amount
-- Paid Amount
-- Class Starting Date
-- Assigned Teacher
+- Checkout resolves in a serializable transaction
+- No payment → create PENDING attempt
+- Latest FAILED → new attempt
+- Latest PENDING → resume existing (no duplicate)
+- Latest SUCCEEDED → already-paid response
 
 ## Validation Rules
 
 ```text
-course required
-course must exist
-course should be active
-admissionAmount >= 0
-paidAmount >= 0
-paidAmount <= admissionAmount
-classStartDate required
-assigned Teacher required
-assigned user role must be TEACHER
-Student must belong to current BDM
+enrollment owned by session student
+enrollment status is PENDING_PAYMENT (else already-paid or 409)
+provider success === true
+received amount equals stored amount (Decimal.equals)
+currency matches exactly
 ```
 
 ## Acceptance Criteria
 
-On valid submission:
+On valid finalization:
 
 ```text
 status:
-REGISTERED
-→ PENDING_ACCOUNTS_APPROVAL
+PENDING_PAYMENT
+→ PAYMENT_VERIFIED (+ stable QR)
 ```
 
-The transition occurs on the backend.
+The transition occurs in one atomic transaction with exactly one history event.
 
-Invalid/incomplete submission does not change workflow state.
+Concurrent checkouts leave exactly one SUCCEEDED payment and zero PENDING.
 
 ---
 
-# FR-008 — BDM Status Monitoring
+# FR-008 — Status Visibility
 
 ## Description
 
-BDM must be able to monitor the current status of their Students.
+Students and staff can monitor the current enrollment status.
 
 ## Acceptance Criteria
 
-BDM can distinguish at minimum:
+Each surface distinguishes at minimum:
 
 ```text
-Registered
-Pending Accounts Approval
-Accounts Approved
-Assigned to Teacher
+Pending Payment
+Payment Verified
+Approved
 ```
 
-Human-readable labels should be used in UI.
+Human-readable labels are used in UI.
 
 ---
 
-# FR-009 — Accounts Pending Admissions
+# FR-009 — Staff Verification View
 
 ## Description
 
-Accounts must see admissions waiting for approval.
+Staff must see verification-safe enrollment data when scanning a QR.
 
-## Accounts-Visible Fields
+## Staff-Visible Fields
 
 - Student Name
 - Student Email
 - Course
-- Admission Amount
-- Paid Amount
+- Reference
+- Payment state, amount, currency
 - Status
 
 ## Acceptance Criteria
 
-- only pending admissions appear in the pending queue
-- unrelated personal information is not included in the API payload
-- Accounts cannot access full BDM Student profile through Accounts endpoints
+- unrelated personal information is never included in the API payload
+- tampered tokens return 404
+- cross-role access is rejected
 
 ---
 
-# FR-010 — Accounts Approval
+# FR-010 — Staff Approval
 
 ## Description
 
-Accounts can approve a valid pending admission.
+BDM/Accounts staff approve a valid verified enrollment with a Teacher assignment.
 
 ## Preconditions
 
 ```text
-authenticated role = ACCOUNTS
-status = PENDING_ACCOUNTS_APPROVAL
-assigned Teacher exists
+authenticated role ∈ {BDM, ACCOUNTS}
+status = PAYMENT_VERIFIED
+SUCCEEDED payment exists
+QR token matches and is unrevoked
+assigned user role = TEACHER
 ```
 
 ## Acceptance Criteria
 
 On approval:
 
-- Accounts approver is recorded
-- approval timestamp is recorded
-- workflow progresses through approved state
-- Student becomes Teacher-visible
-- duplicate approval does not produce duplicate side effects
-- invalid workflow state is rejected safely
+- approver and timestamp are recorded
+- status becomes APPROVED (exactly once under concurrency; duplicate → 409)
+- student gains exact course access
+- assigned teacher gains enrollment access
+- unpaid enrollment → 409
+- wrong QR → rejected
+- non-teacher assignee → 400
 
 ---
 
-# FR-011 — Teacher Student List
+# FR-011 — Teacher Enrollment List
 
 ## Description
 
-Teacher sees only students assigned to them and approved by Accounts.
+Teacher sees only enrollments assigned to them with APPROVED status.
 
 ## Minimum Fields
 
 - Student Name
 - Email
 - Course
-- Class Start Date (optional but useful)
+- Approved date / module count
 
 ## Acceptance Criteria
 
-A Student appears only when:
+An enrollment appears only when:
 
 ```text
 assignedTeacherId = current Teacher
 AND
-Accounts approval completed
+status = APPROVED
 ```
 
-Other Teachers cannot see or retrieve the Student.
+Other teachers' enrollments are excluded from the list and unreachable by direct URL (safe 404).
 
 ---
 
-# FR-012 — Teacher Student Detail
+# FR-012 — Teacher Enrollment Detail
 
 ## Description
 
-Teacher can view the assigned Student and course information.
+Teacher can view the assigned enrollment and course information.
 
 ## Required Data
 
 - Student Name
 - Email
 - Course
-- Course Modules / Learning Requirements
+- Course Modules / Learning Requirements (ordered, data-driven)
 
 ## Acceptance Criteria
 
-- only assigned Teacher may access
-- unapproved Student cannot be accessed
+- only assigned Teacher may access (safe 404 otherwise)
+- unapproved enrollment cannot be accessed
 - another Teacher cannot access by direct URL/API call
 
 ---
@@ -852,25 +855,21 @@ Do not implement before the mandatory workflow is complete.
 
 | Capability | Student | BDM | Accounts | Teacher |
 | --- | --- | --- | --- | --- |
-| Submit public registration | Yes | No | No | No |
-| Login to staff dashboard | No | Yes | Yes | Yes |
-| See own QR | No | Yes | No | No |
-| See full registration profile | No | Own Students only | No | No |
-| See Student Name | N/A | Own Students | Pending admissions | Assigned approved Students |
-| See Student Email | N/A | Own Students | Pending admissions | Assigned approved Students |
-| See Address | N/A | Own Students | No | No |
-| See Education | N/A | Own Students | No | No |
-| Select Course | No | Own Students | No | No |
-| Enter payment details | No | Own Students | Verify only | No |
-| Assign Teacher | No | Own Students | No | No |
-| Approve admission | No | No | Yes | No |
-| See assigned Students before approval | No | Monitor only | N/A | No |
-| See assigned Students after approval | No | Monitor | N/A | Own only |
-| See Course Modules | No | Optional | No | Assigned approved Students |
-| Access another BDM's Student | No | No | N/A | N/A |
-| Access another Teacher's Student | No | N/A | N/A | No |
+| Public signup | Yes (forced STUDENT) | No | No | No |
+| Login to dashboard | Yes | Yes | Yes | Yes |
+| Confirm enrollment | Own only | No | No | No |
+| Demo checkout | Own PENDING_PAYMENT only | No | No | No |
+| Scan enrollment QR | No (403) | Yes | Yes | No (403) |
+| See verification DTO | No | Yes | Yes | No |
+| Approve enrollment | No | Yes | Yes | No |
+| See assigned enrollments before approval | No | N/A | N/A | No |
+| See assigned enrollments after approval | No | N/A | N/A | Own only |
+| See Course Modules | Approved own course | No | No | Assigned approved enrollments |
+| See student PII (address/phone/education) | Own only | No | No | No |
+| Submit student profile | Own only | No (403) | No (403) | No (403) |
+| Call payment webhook | No | N/A (secret-gated) | N/A (secret-gated) | No |
 
-All restrictions must be enforced by backend/API logic.
+All restrictions are enforced by backend/API logic. The webhook additionally requires the server-side secret + signature with zero DB mutation before auth.
 
 ---
 
@@ -898,67 +897,48 @@ ACCOUNTS
 TEACHER
 ```
 
-Staff emails are unique. Better Auth owns credential storage through its authentication tables.
+Public signup forces STUDENT (`role.input = false`). Staff emails are unique. Better Auth owns credential storage through its authentication tables.
 
 ---
 
-## 11.2 RegistrationLink
+## 11.2 Student
 
 Required:
 
 ```text
 id
-token
-bdmId
-isActive
-expiresAt?
-createdAt
-updatedAt
-```
-
-Token is unique and unpredictable.
-
----
-
-## 11.3 Student
-
-Required:
-
-```text
-id
-fullName
-email
+userId (unique)
 phone
 address
 education
 additionalInfo?
-registeredViaBdmId
 createdAt
 updatedAt
 ```
 
-Student email is not required to be globally unique in MVP.
+Ownership always derives from the authenticated session.
 
 ---
 
-## 11.4 Course
+## 11.3 Course
 
 Required:
 
 ```text
 id
-name
+slug (unique)
+name (unique)
 description?
+price (Decimal)
+currency
 isActive
 createdAt
 updatedAt
 ```
 
-Course name is unique.
-
 ---
 
-## 11.5 CourseModule
+## 11.4 CourseModule
 
 Required:
 
@@ -981,41 +961,75 @@ order
 
 ---
 
-## 11.6 Admission
+## 11.5 Enrollment
 
 Required model capability:
 
 ```text
 id
+reference (unique, display-only)
 studentId
-courseId?
-admissionAmount?
-paidAmount?
-classStartDate?
+courseId
+priceAtEnrollment (Decimal snapshot)
+currencyAtEnrollment
+status (default PENDING_PAYMENT)
 assignedTeacherId?
-submittedByBdmId?
-status
-accountsApprovedById?
-accountsApprovedAt?
+approvedById?
+approvedAt?
 createdAt
 updatedAt
 ```
 
 Rules:
 
-- one Admission per Student in MVP
+- one Enrollment per student+course
 - payment uses decimal precision
-- pre-BDM fields may be null while status is REGISTERED
+- reference collisions retry; student+course collisions return existing
 
 ---
 
-## 11.7 AdmissionStatusHistory
+## 11.6 EnrollmentQr
 
 Required:
 
 ```text
 id
-admissionId
+enrollmentId (unique)
+token (unique, opaque)
+createdAt
+revokedAt?
+```
+
+Created once; never rotates.
+
+---
+
+## 11.7 Payment
+
+Required:
+
+```text
+id
+enrollmentId
+provider
+providerPaymentId (unique)
+amount (Decimal)
+currency
+status (default PENDING)
+verifiedAt?
+createdAt
+updatedAt
+```
+
+---
+
+## 11.8 EnrollmentStatusHistory
+
+Required:
+
+```text
+id
+enrollmentId
 fromStatus?
 toStatus
 changedById?
@@ -1028,39 +1042,51 @@ createdAt
 
 All external input must be validated on the backend.
 
-## Student Registration
+## Public Signup + Profile
 
 Validate at minimum:
 
-- full name required
+- name required
 - email valid
-- phone required
-- address required
-- education required
-- token valid and active
+- password meets policy
+- role forced to STUDENT regardless of input
+- phone/address/education required for profile
+- profile ownership from session only
 
-## BDM Admission
-
-Validate:
-
-- Student belongs to BDM
-- Course exists
-- Teacher exists
-- Teacher role is TEACHER
-- amount values valid
-- paid amount does not exceed admission amount
-- class start date required
-- current workflow status allows submission
-
-## Accounts Approval
+## Enrollment + Checkout
 
 Validate:
 
-- user role is ACCOUNTS
-- Admission exists
-- current status is pending
-- required BDM admission data exists
-- assigned Teacher still exists/is valid
+- course exists and is active
+- enrollment owned by session student
+- enrollment status allows checkout (else already-paid or 409)
+- concurrent duplicates resolve to one enrollment
+
+## Payment Finalization (server)
+
+Validate:
+
+- provider success === true
+- received amount equals stored amount (Decimal)
+- currency matches
+- payment + enrollment in expected state
+
+## Webhook (before any DB work)
+
+Validate:
+
+- webhook secret configured (else 503)
+- signature present and correct (else 401)
+
+## Staff Approval
+
+Validate:
+
+- user role ∈ {BDM, ACCOUNTS}
+- enrollment exists and is PAYMENT_VERIFIED
+- SUCCEEDED payment exists
+- QR token matches and is unrevoked
+- assigned user role is TEACHER
 
 ---
 
@@ -1076,12 +1102,13 @@ Validate:
 
 ## 13.2 QR Token Security
 
-Registration tokens must:
+Enrollment verification tokens must:
 
 - be unique
-- be unpredictable
-- not expose trusted BDM ownership directly
-- be rejectable when invalid/inactive/expired
+- be unpredictable (high-entropy)
+- be opaque (no IDs, email, or PII)
+- be stable (never rotate on retries/duplicates)
+- be rejectable when unknown/revoked (safe 404)
 
 ---
 
@@ -1102,8 +1129,8 @@ The system must also verify resource ownership.
 Examples:
 
 ```text
-BDM A cannot access BDM B's Student.
-Teacher A cannot access Teacher B's Student.
+Student A cannot access Student B's enrollments.
+Teacher A cannot access Teacher B's enrollments.
 ```
 
 ---
@@ -1307,169 +1334,135 @@ The application should run in modern desktop/mobile browsers.
 
 # 17. Acceptance Test Scenarios
 
-# Scenario A — Correct BDM Ownership
+# Scenario A — Session Ownership
 
-Given:
+Given a signed-up student with a completed profile:
 
-```text
-BDM A
-BDM B
-```
-
-When Student A registers using BDM A's QR:
+When the student confirms an enrollment:
 
 Expected:
 
 ```text
-BDM A sees Student A.
-BDM B does not see Student A.
-BDM B cannot retrieve Student A directly.
+Enrollment belongs to that student only.
+Another student receives safe 404 on direct access.
+role/userId injection in profile payloads is ignored.
 ```
 
 ---
 
-# Scenario B — Pending Admission
+# Scenario B — Payment & Stable QR
 
-Given Student A belongs to BDM A.
+Given a PENDING_PAYMENT enrollment:
 
-When BDM A completes:
-
-```text
-Course
-Admission Amount
-Paid Amount
-Start Date
-Teacher A
-```
-
-and submits:
+When the server-controlled checkout runs (including concurrently):
 
 Expected:
 
 ```text
-Status = PENDING_ACCOUNTS_APPROVAL
-Accounts can see the admission.
-Teacher A still cannot see Student A.
+Status = PAYMENT_VERIFIED
+Exactly one SUCCEEDED payment, zero PENDING left
+One stable QR token (never rotates on duplicates)
 ```
 
 ---
 
-# Scenario C — Accounts Privacy
+# Scenario C — Webhook Forgery Resistance
 
-When Accounts opens Student A's pending admission:
-
-Expected data includes:
-
-```text
-Name
-Email
-Course
-Admission Amount
-Paid Amount
-```
-
-Expected data does not include:
-
-```text
-Address
-Education
-Additional personal information
-```
-
----
-
-# Scenario D — Accounts Approval
-
-When Accounts approves Student A:
+When the webhook is called without a secret, with a wrong signature,
+with a wrong amount/currency, or with success=false:
 
 Expected:
 
 ```text
-approval metadata stored
-workflow progresses
-Teacher A gains access
+Rejected (503/401/409/400 respectively)
+Zero DB mutation for auth failures
+Zero finalization for amount/currency/success failures
+```
+
+---
+
+# Scenario D — Approval Gates
+
+When staff attempts approval:
+
+Expected:
+
+```text
+Unpaid enrollment → 409
+Wrong QR token → rejected
+Non-teacher assignee → 400
+Concurrent approvals → exactly one 200 + one 409
 ```
 
 ---
 
 # Scenario E — Teacher Isolation
 
-Given Student A is assigned to Teacher A.
-
-After Accounts approval:
+Given an APPROVED enrollment assigned to Teacher A:
 
 Expected:
 
 ```text
-Teacher A sees Student A.
-Teacher B does not see Student A.
-Teacher B direct API request is rejected/not returned.
+Teacher A sees the enrollment.
+Teacher B list excludes it.
+Teacher B direct API request returns safe 404.
 ```
 
 ---
 
 # Scenario F — Teacher Course Modules
 
-Given Student A's Course is IELTS.
+Given the enrollment's course has ordered modules:
 
-Teacher A opens Student A.
+Teacher A opens the enrollment.
 
 Expected:
 
 ```text
 Student Name
 Email
-IELTS
-Listening
-Reading
-Writing
-Speaking
-Mock Test
+Course
+Ordered module list (from CourseModule data, never hardcoded)
 ```
-
-Modules should come from CourseModule data.
 
 ---
 
-# Scenario G — Invalid Payment
+# Scenario G — Amount/Currency Mismatch
 
-When BDM submits:
-
-```text
-admissionAmount = 10000
-paidAmount = 15000
-```
+When the webhook reports an amount or currency that does not match the stored payment:
 
 Expected:
 
 ```text
-validation error
-status remains unchanged
+rejected
+payment remains PENDING
+enrollment remains PENDING_PAYMENT
+no history or QR side effects
 ```
 
 ---
 
 # Scenario H — Invalid Teacher Assignment
 
-When BDM attempts to assign a User whose role is not TEACHER:
+When staff attempts approval with a user whose role is not TEACHER:
 
 Expected:
 
 ```text
-request rejected
+request rejected (400)
 status remains unchanged
 ```
 
 ---
 
-# Scenario I — Duplicate Accounts Approval
+# Scenario I — Duplicate Approval
 
-When Accounts attempts to approve an already approved Admission:
+When staff attempts to approve an already approved enrollment:
 
 Expected:
 
 ```text
-safe conflict/no-op response
+safe 409 response
 no duplicate workflow side effects
 ```
 
@@ -1477,65 +1470,55 @@ no duplicate workflow side effects
 
 # Scenario J — Invalid QR
 
-When a Student opens an invalid/inactive/expired registration token:
+When staff scans an unknown, tampered, or revoked verification token:
 
 Expected:
 
 ```text
-registration cannot proceed
-no Student is created
+safe 404
+no enrollment data disclosed
 ```
 
 ---
 
 # 18. Dashboard Requirements
 
-# 18.1 BDM Dashboard
+# 18.1 Student Dashboard
 
 Minimum useful sections:
 
 ```text
-My Registration QR
+My Enrollments (course, reference, price, status, teacher, QR)
 
-Total Students
-Registered
-Pending Accounts
-Approved/Assigned
-
-Student list
+Enroll in More Courses
 ```
 
-Student list should provide:
-
-```text
-Name
-Course
-Teacher
-Status
-```
+Explicit confirmation is required for every new enrollment.
 
 ---
 
-# 18.2 Accounts Dashboard
+# 18.2 Staff Scanner
 
 Minimum useful sections:
 
 ```text
-Pending Approvals
+Camera scanner + manual token verification
+
+Enrollment verification result
+Teacher assignment + approval action
 ```
 
-Each item/row should show:
+Each result shows only:
 
 ```text
-Student
-Email
+Student name/email
 Course
-Admission Amount
-Paid Amount
-Approve
+Reference
+Amount / paid amount
+Status
 ```
 
-No unnecessary Student profile fields.
+No student PII beyond name/email.
 
 ---
 
@@ -1544,7 +1527,7 @@ No unnecessary Student profile fields.
 Minimum useful sections:
 
 ```text
-My Students
+My Assigned Enrollments
 ```
 
 Each item/row:
@@ -1553,10 +1536,10 @@ Each item/row:
 Student
 Email
 Course
-Start Date (optional)
+Approved date / module count
 ```
 
-Only approved/assigned Students appear.
+Only APPROVED assigned enrollments appear.
 
 ---
 
@@ -1641,38 +1624,33 @@ Do not sacrifice authorization or workflow correctness for visual polish.
 
 # 22. MVP Definition of Done
 
-The MVP is complete only when all applicable requirements below are true:
+The MVP is complete only when all applicable requirements below are true.
+Start every item unchecked; check only what the closure verification proves:
 
 ```text
-[ ] BDM authentication works
-[ ] Accounts authentication works
-[ ] Teacher authentication works
-
-[ ] BDM has unique registration QR/link
-[ ] Public Student registration works
-[ ] Registration resolves correct BDM
-[ ] Other BDM cannot access Student
-
-[ ] BDM can select Course
-[ ] BDM can enter Admission Amount
-[ ] BDM can enter Paid Amount
-[ ] BDM can set Class Starting Date
-[ ] BDM can assign Teacher
-[ ] Invalid Teacher role is rejected
-[ ] Invalid payment amounts are rejected
-
-[ ] BDM submission sets Pending Accounts Approval
-[ ] Accounts sees pending Admission
-[ ] Accounts payload is data-minimized
-[ ] Accounts can approve
-[ ] Approval metadata is stored
-
-[ ] Teacher cannot see Student before approval
-[ ] Assigned Teacher sees Student after approval
-[ ] Other Teacher cannot access Student
-[ ] Teacher sees Course
-[ ] Teacher sees Course Modules
-
+[ ] Public signup creates STUDENT only
+[ ] Staff cannot self-register as privileged role
+[ ] Student profile is session-owned
+[ ] Course choice survives signup/profile flow
+[ ] Enrollment created only by explicit action
+[ ] Duplicate enrollment safe
+[ ] Payment uses Decimal/string money contract
+[ ] Checkout does not create duplicate active pending payments
+[ ] Demo payment is entirely server-controlled
+[ ] Webhook fails closed when secret is unavailable
+[ ] Invalid webhook signature causes zero mutations
+[ ] Payment success=false cannot finalize
+[ ] Wrong amount / wrong currency rejected
+[ ] Payment transition atomic
+[ ] Concurrent payment finalization safe
+[ ] QR created once, never rotates, opaque token only
+[ ] Camera scanner works with manual fallback
+[ ] Staff scan DTO is privacy-minimized
+[ ] Unpaid enrollment cannot be approved
+[ ] Approval requires valid QR + TEACHER role
+[ ] Concurrent approval safe
+[ ] Student accesses exact approved course only
+[ ] Teacher sees exact assigned approved enrollments only
 [ ] Workflow status is backend-controlled
 [ ] Backend role authorization exists
 [ ] Backend resource ownership checks exist
@@ -1683,10 +1661,12 @@ The MVP is complete only when all applicable requirements below are true:
 [ ] Responsive UI is usable
 [ ] Loading/empty/error states are present
 
-[ ] Database migration is valid
+[ ] Database migration state is valid
+[ ] Prisma schema unchanged by closure pass
 [ ] Lint passes
 [ ] Production build passes
-[ ] End-to-end manual smoke test passes
+[ ] End-to-end HTTP suite passes
+[ ] Manual browser journey passes
 ```
 
 ---

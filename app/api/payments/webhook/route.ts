@@ -3,18 +3,19 @@ import { headers } from "next/headers";
 import { mockPaymentProvider } from "@/lib/server/payments/mock-provider";
 import { processPaymentWebhook } from "@/lib/server/services/payment.service";
 
-// POST /api/payments/webhook — payment provider callback
+// POST /api/payments/webhook — payment provider callback.
+// Fail-closed: zero database mutation before secret/signature verification.
 
 export async function POST(req: Request) {
-  // Secret/signature check if configured
   const webhookSecret = process.env.MOCK_PAYMENT_WEBHOOK_SECRET;
-  if (webhookSecret) {
-    const reqHeaders = await headers();
-    const signature =
-      reqHeaders.get("x-webhook-secret") || reqHeaders.get("x-signature");
-    if (signature !== webhookSecret) {
-      return NextResponse.json({ error: "Invalid webhook secret." }, { status: 401 });
-    }
+  if (!webhookSecret) {
+    return NextResponse.json({ error: "Webhook not configured." }, { status: 503 });
+  }
+
+  const reqHeaders = await headers();
+  const signature = reqHeaders.get("x-webhook-secret") || reqHeaders.get("x-signature");
+  if (!signature || signature !== webhookSecret) {
+    return NextResponse.json({ error: "Invalid webhook signature." }, { status: 401 });
   }
 
   let payload: unknown;
@@ -24,16 +25,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
-  const provider = mockPaymentProvider;
-
-  const verified = await provider.verifyWebhookPayload(payload);
+  const verified = await mockPaymentProvider.verifyWebhookPayload(payload);
   if (!verified || !verified.providerPaymentId) {
     return NextResponse.json({ error: "Invalid webhook payload." }, { status: 400 });
   }
 
+  // A provider event that reports failure must never finalize a payment.
+  if (verified.success !== true) {
+    return NextResponse.json({ error: "Provider reported unsuccessful payment." }, { status: 400 });
+  }
+
   const result = await processPaymentWebhook({
     providerPaymentId: verified.providerPaymentId,
-    amountReceived: String(verified.amount),
+    amountReceived: verified.amount,
     currency: verified.currency,
   });
 

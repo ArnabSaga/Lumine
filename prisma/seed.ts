@@ -98,13 +98,13 @@ const COURSES: CourseSeedData[] = [
     price: 25000,
     currency: "BDT",
     modules: [
-      { title: "HTML & CSS Fundamentals", description: "Semantic markup, responsive layouts, CSS Grid, and Flexbox", order: 1 },
-      { title: "JavaScript Mastery", description: "ES6+, DOM manipulation, asynchronous programming, and APIs", order: 2 },
-      { title: "React & Component Architecture", description: "Hooks, state management, component composition, and routing", order: 3 },
-      { title: "Next.js & Full-Stack Development", description: "App Router, Server Components, API routes, and SSR", order: 4 },
-      { title: "Node.js & Backend Services", description: "Express, RESTful APIs, authentication, and middleware", order: 5 },
-      { title: "Database & Relational Modeling", description: "PostgreSQL, Prisma ORM, migrations, and transactions", order: 6 },
-      { title: "Deployment & DevOps", description: "CI/CD pipelines, production deployment, observability, and security", order: 7 },
+      { title: "HTML & CSS", description: "Semantic markup, responsive layouts, CSS Grid, and Flexbox", order: 1 },
+      { title: "JavaScript", description: "ES6+, DOM manipulation, asynchronous programming, and APIs", order: 2 },
+      { title: "React", description: "Hooks, state management, component composition, and routing", order: 3 },
+      { title: "Next.js", description: "App Router, Server Components, API routes, and SSR", order: 4 },
+      { title: "Node.js", description: "Express, RESTful APIs, authentication, and middleware", order: 5 },
+      { title: "Database", description: "PostgreSQL, Prisma ORM, migrations, and transactions", order: 6 },
+      { title: "Deployment", description: "CI/CD pipelines, production deployment, observability, and security", order: 7 },
     ],
   },
 ];
@@ -157,48 +157,42 @@ async function main() {
     }
   }
 
-  // 2. Seed Courses and Modules
+  // 2. Seed Courses and Modules (idempotent: reconcile only the explicit demo courses)
   for (const courseData of COURSES) {
     console.log(`Upserting course: ${courseData.name}`);
-    const course = await prisma.course.upsert({
-      where: { name: courseData.name },
-      update: {
-        slug: courseData.slug,
-        description: courseData.description,
-        price: courseData.price,
-        currency: courseData.currency,
-        isActive: true,
-      },
-      create: {
-        name: courseData.name,
-        slug: courseData.slug,
-        description: courseData.description,
-        price: courseData.price,
-        currency: courseData.currency,
-        isActive: true,
-      },
-    });
-
-    for (const mod of courseData.modules) {
-      await prisma.courseModule.upsert({
-        where: {
-          courseId_title: {
-            courseId: course.id,
-            title: mod.title,
-          },
-        },
+    await prisma.$transaction(async (tx) => {
+      const course = await tx.course.upsert({
+        where: { name: courseData.name },
         update: {
-          description: mod.description,
-          order: mod.order,
+          slug: courseData.slug,
+          description: courseData.description,
+          price: courseData.price,
+          currency: courseData.currency,
+          isActive: true,
         },
         create: {
+          name: courseData.name,
+          slug: courseData.slug,
+          description: courseData.description,
+          price: courseData.price,
+          currency: courseData.currency,
+          isActive: true,
+        },
+      });
+
+      // Delete stale/renamed seeded modules so @@unique([courseId, title])
+      // and @@unique([courseId, order]) can never conflict across seed versions,
+      // then recreate the deterministic canonical module set.
+      await tx.courseModule.deleteMany({ where: { courseId: course.id } });
+      await tx.courseModule.createMany({
+        data: courseData.modules.map((mod) => ({
           courseId: course.id,
           title: mod.title,
           description: mod.description,
           order: mod.order,
-        },
+        })),
       });
-    }
+    });
   }
 
   console.log("Seed completed successfully.");

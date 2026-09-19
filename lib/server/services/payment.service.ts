@@ -111,9 +111,11 @@ export async function finalizeVerifiedPayment(params: {
       },
     });
 
-    // 7. Stable QR Upsert: Never rotates an existing QR token
-    let qrCreated = false;
-    for (let attempt = 0; attempt < 5; attempt++) {
+    // 7. Stable QR Upsert: Never rotates an existing QR token.
+    // Only a unique-constraint collision on another row's token is retried;
+    // every other database error propagates.
+    const MAX_QR_ATTEMPTS = 3;
+    for (let attempt = 1; attempt <= MAX_QR_ATTEMPTS; attempt++) {
       try {
         await tx.enrollmentQr.upsert({
           where: { enrollmentId: payment.enrollmentId },
@@ -123,18 +125,21 @@ export async function finalizeVerifiedPayment(params: {
           },
           update: {}, // No-op on duplicate: stable token is preserved
         });
-        qrCreated = true;
         break;
-      } catch {
-        // Retry on token collision
-        if (attempt === 4) {
-          throw new Error("Failed to generate unique QR token after multiple attempts.");
+      } catch (err: unknown) {
+        const target =
+          err instanceof Prisma.PrismaClientKnownRequestError
+            ? (err.meta?.["target"] as unknown)
+            : undefined;
+        const isTokenCollision =
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002" &&
+          Array.isArray(target) &&
+          target.includes("token");
+        if (!isTokenCollision || attempt === MAX_QR_ATTEMPTS) {
+          throw err;
         }
       }
-    }
-
-    if (!qrCreated) {
-      throw new Error("Failed to create Enrollment QR record.");
     }
 
     return { ok: true };

@@ -13,7 +13,7 @@ export interface PaymentProvider {
   initiatePayment(params: {
     enrollmentId: string;
     reference: string;
-    amount: number;
+    amount: string;
     currency: string;
     studentName: string;
     studentEmail: string;
@@ -21,7 +21,7 @@ export interface PaymentProvider {
   verifyWebhookPayload(payload: unknown): Promise<{
     providerPaymentId: string;
     success: boolean;
-    amount: number;
+    amount: string;
     currency: string;
   } | null>;
 }
