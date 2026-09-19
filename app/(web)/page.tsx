@@ -3,7 +3,7 @@ export default function Home() {
     <main className="min-h-screen px-6 py-10">
       <div className="mx-auto max-w-3xl">
         <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
-          Student Management Portal
+          Luminedge
         </p>
         <h1 className="mt-3 text-3xl font-semibold text-slate-950">
           Foundation ready for the core workflow.
