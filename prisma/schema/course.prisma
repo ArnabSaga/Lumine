@@ -1,13 +1,16 @@
 model Course {
   id          String   @id @default(cuid())
+  slug        String   @unique
   name        String   @unique
   description String?
+  price       Decimal  @db.Decimal(12, 2)
+  currency    String   @default("BDT")
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  modules    CourseModule[]
-  admissions Admission[]
+  modules     CourseModule[]
+  enrollments Enrollment[]
 }
 
 model CourseModule {

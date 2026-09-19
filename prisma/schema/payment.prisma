@@ -1,0 +1,17 @@
+model Payment {
+  id                String        @id @default(cuid())
+  enrollmentId      String
+  provider          String
+  providerPaymentId String?       @unique
+  amount            Decimal       @db.Decimal(12, 2)
+  currency          String        @default("BDT")
+  status            PaymentStatus @default(PENDING)
+  verifiedAt        DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([enrollmentId])
+  @@index([status])
+}

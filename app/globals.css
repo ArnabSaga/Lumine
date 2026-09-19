@@ -1,9 +1,39 @@
 @import "tailwindcss";
 
+/* ======================================================
+   Luminedge Design Tokens — Run 2R
+   Primary:   #FACE39 (Yellow) — CTAs, active nav, QR accents
+   Secondary: #000000 (Black) — Main text, dark buttons
+   Tertiary:  #1E293B (Slate) — Dashboard nav, dark panels
+   Neutral:   #F8FAFC (Off-white) — Dashboard surfaces
+   ====================================================== */
+
 :root {
-  color-scheme: light;
-  --background: #f8fafc;
-  --foreground: #111827;
+  color-scheme: light dark;
+
+  /* Brand palette */
+  --lum-primary: #face39;
+  --lum-primary-dark: #e5b800;
+  --lum-secondary: #000000;
+  --lum-tertiary: #1e293b;
+  --lum-neutral: #f8fafc;
+
+  /* Semantic */
+  --background: var(--lum-neutral);
+  --foreground: var(--lum-secondary);
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+
+  /* Status colors */
+  --status-pending: #f59e0b;
+  --status-verified: #3b82f6;
+  --status-approved: #10b981;
+  --status-failed: #ef4444;
+
+  /* Typography scale */
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-hanken), var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
 * {
@@ -19,5 +49,141 @@ body {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ====================================================
+   Luminedge Utility Classes
+   ==================================================== */
+
+.lum-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  background-color: var(--lum-primary);
+  color: var(--lum-secondary);
+  font-weight: 700;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s, opacity 0.15s;
+  text-decoration: none;
+}
+
+.lum-btn-primary:hover {
+  background-color: var(--lum-primary-dark);
+}
+
+.lum-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lum-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  background-color: transparent;
+  color: var(--lum-tertiary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  border: 1.5px solid #cbd5e1;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+  text-decoration: none;
+}
+
+.lum-btn-secondary:hover {
+  border-color: #94a3b8;
+  background-color: #f1f5f9;
+}
+
+.lum-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+}
+
+.lum-input {
+  display: block;
+  width: 100%;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  background: #ffffff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+
+.lum-input:focus {
+  border-color: var(--lum-primary);
+  box-shadow: 0 0 0 3px rgba(250, 206, 57, 0.2);
+}
+
+.lum-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #475569;
+  margin-bottom: 0.375rem;
+}
+
+/* Staff/dashboard dark panels */
+.lum-dark-panel {
+  background-color: var(--lum-tertiary);
+  color: #f1f5f9;
+}
+
+.lum-nav-active {
+  color: var(--lum-primary);
+  font-weight: 700;
+}
+
+/* Status badges */
+.lum-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lum-badge-pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.lum-badge-verified {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.lum-badge-approved {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.lum-badge-failed {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.25);
 }
