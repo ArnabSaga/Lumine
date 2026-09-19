@@ -5,6 +5,7 @@ import {
   getTeacherDashboardEnrollments,
 } from "@/lib/server/services/teacher.service";
 import { getTeacherDashboardMetrics } from "@/lib/server/services/dashboard.service";
+import { getTeacherEnrollmentsProgress } from "@/lib/server/services/course-progress.service";
 import {
   teacherEnrollmentQuerySchema,
   type TeacherEnrollmentQueryInput,
@@ -28,10 +29,11 @@ export default async function TeacherDashboardPage({
   const filtersValid = parsed.success;
   const query: TeacherEnrollmentQueryInput = filtersValid ? parsed.data : {};
 
-  const [enrollments, courses, metrics] = await Promise.all([
+  const [enrollments, courses, metrics, progressByEnrollment] = await Promise.all([
     filtersValid ? getTeacherDashboardEnrollments(session.user.id, query) : Promise.resolve([]),
     getTeacherCourseFilterOptions(session.user.id),
     getTeacherDashboardMetrics(session.user.id),
+    getTeacherEnrollmentsProgress(session.user.id),
   ]);
 
   return (
@@ -100,7 +102,7 @@ export default async function TeacherDashboardPage({
             <table className="lum-table">
               <thead>
                 <tr>
-                  {["Student", "Course", "Reference", "Modules", "Approved", "Curriculum"].map((h) => (
+                  {["Student", "Course", "Reference", "Modules", "Progress", "Approved", "Curriculum"].map((h) => (
                     <th key={h}>{h}</th>
                   ))}
                 </tr>
@@ -118,6 +120,16 @@ export default async function TeacherDashboardPage({
                       <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
                         {enr.moduleCount} modules
                       </span>
+                    </td>
+                    <td>
+                      {progressByEnrollment[enr.enrollmentId] ? (
+                        <span className="font-mono text-xs font-black text-slate-700">
+                          {progressByEnrollment[enr.enrollmentId].percentage}%
+                          {progressByEnrollment[enr.enrollmentId].isComplete ? " · Completed" : ""}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
                     </td>
                     <td className="text-sm text-slate-500">
                       {enr.approvedAt ? new Date(enr.approvedAt).toLocaleDateString() : "Pending"}

@@ -9,6 +9,8 @@ import SelectedCourseEnrollment from "./SelectedCourseEnrollment";
 import { AppShell } from "@/components/ui/shells";
 import { EmptyState, GlassCard, PageHeader, StatusBadge } from "@/components/ui/primitives";
 import { getEnrollmentHistoryDescription, getEnrollmentHistoryLabel } from "@/lib/shared/enrollment-history";
+import { getStudentDashboardProgress } from "@/lib/server/services/course-progress.service";
+import CourseProgressBar from "@/components/course/CourseProgressBar";
 
 export const metadata = { title: "My Dashboard — Luminedge" };
 
@@ -75,6 +77,9 @@ export default async function StudentDashboard({
     : null;
 
   const unenrolledCourses = availableCourses.filter((c) => !enrolledCourseIds.has(c.id));
+
+  // Batched learning progress for APPROVED enrollments only (no N+1).
+  const progressByEnrollment = await getStudentDashboardProgress(session.user.id);
 
   return (
     <AppShell
@@ -157,6 +162,17 @@ export default async function StudentDashboard({
                       <Link href={`/student/courses/${enr.course.slug}`} className="lum-btn-primary" style={{ fontSize: "0.8rem", padding: "0.5rem 1rem", marginTop: "0.5rem", display: "inline-flex" }}>
                         Access Course →
                       </Link>
+                    )}
+
+                    {isApproved && progressByEnrollment[enr.id] && (
+                      <div className="mt-5 rounded-3xl border border-slate-200 bg-white/70 p-4">
+                        <p className="lum-eyebrow mb-3">Course Progress</p>
+                        <CourseProgressBar
+                          completed={progressByEnrollment[enr.id].completedModules}
+                          total={progressByEnrollment[enr.id].totalModules}
+                          percentage={progressByEnrollment[enr.id].percentage}
+                        />
+                      </div>
                     )}
 
                     <div className="mt-5 rounded-3xl border border-slate-200 bg-white/70 p-4">

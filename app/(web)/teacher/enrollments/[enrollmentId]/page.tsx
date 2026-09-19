@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentSession } from "@/lib/server/guards/auth";
 import { getTeacherEnrollmentDetail } from "@/lib/server/services/teacher.service";
+import { getTeacherEnrollmentProgress } from "@/lib/server/services/course-progress.service";
 import { GlassCard, PageHeader } from "@/components/ui/primitives";
+import CourseProgressBar from "@/components/course/CourseProgressBar";
 
 export default async function TeacherEnrollmentDetailPage({
   params,
@@ -18,6 +20,10 @@ export default async function TeacherEnrollmentDetailPage({
   if (!detail) {
     notFound();
   }
+
+  // Read-only learning progress for this assigned approved enrollment.
+  const progressView = await getTeacherEnrollmentProgress(session.user.id, enrollmentId);
+  const progress = progressView?.progress ?? null;
 
   return (
     <div>
@@ -65,23 +71,47 @@ export default async function TeacherEnrollmentDetailPage({
             </span>
           </div>
 
-          {detail.modules.length === 0 ? (
+          {detail.modules.length === 0 || !progress ? (
             <p className="rounded-2xl border border-slate-200 bg-white/70 p-5 text-center text-sm text-slate-500">
-              No modules defined for this course.
+              No course modules are available yet.
             </p>
           ) : (
-            <div className="space-y-3">
-              {detail.modules.map((mod, index) => (
-                <div key={mod.id} className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white/75 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--lum-primary)] font-mono text-sm font-black text-slate-950">
-                    {index + 1}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-slate-950">{mod.title}</h3>
-                    {mod.description && <p className="mt-1 text-sm leading-6 text-slate-600">{mod.description}</p>}
-                  </div>
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-slate-200 bg-white/75 p-4">
+                <div className="mb-3 flex flex-wrap items-center gap-3">
+                  <p className="lum-eyebrow">Learning Progress</p>
+                  {progress.isComplete ? (
+                    <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-black text-emerald-700">
+                      Completed · 100%
+                    </span>
+                  ) : null}
                 </div>
-              ))}
+                <CourseProgressBar
+                  completed={progress.completedModules}
+                  total={progress.totalModules}
+                  percentage={progress.percentage}
+                />
+              </div>
+              <div className="space-y-3">
+                {progress.modules.map((mod) => (
+                  <div key={mod.id} className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white/75 p-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--lum-primary)] font-mono text-sm font-black text-slate-950">
+                      {mod.order}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-slate-950">
+                        {mod.completed ? "✓ " : "○ "}{mod.title}
+                      </h3>
+                      {mod.description && <p className="mt-1 text-sm leading-6 text-slate-600">{mod.description}</p>}
+                      {mod.completed && mod.completedAt && (
+                        <p className="mt-1 text-xs font-semibold text-emerald-700">
+                          Completed {new Date(mod.completedAt).toLocaleDateString("en-BD")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </GlassCard>

@@ -19,6 +19,7 @@ model Enrollment {
   payments        Payment[]
   qr              EnrollmentQr?
   statusHistory   EnrollmentStatusHistory[]
+  moduleProgress  EnrollmentModuleProgress[]
 
   @@unique([studentId, courseId])
   @@index([studentId])

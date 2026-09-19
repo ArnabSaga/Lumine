@@ -3,8 +3,11 @@ import { notFound } from "next/navigation";
 import { requirePageRole } from "@/lib/server/guards/auth";
 import { prisma } from "@/lib/server/db";
 import { UserRole } from "@/generated/prisma/client";
+import { getStudentEnrollmentProgress } from "@/lib/server/services/course-progress.service";
 import { AppShell } from "@/components/ui/shells";
 import { EmptyState, GlassCard, PageHeader, StatusBadge } from "@/components/ui/primitives";
+import CourseProgressBar from "@/components/course/CourseProgressBar";
+import ModuleProgressList from "@/components/course/ModuleProgressList";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -71,6 +74,10 @@ export default async function StudentCoursePage({
 
   const isApproved = enrollment?.status === "APPROVED";
 
+  const progressResult =
+    isApproved && enrollment ? await getStudentEnrollmentProgress(session.user.id, enrollment.id) : null;
+  const progress = progressResult && progressResult.ok ? progressResult.summary : null;
+
   return (
     <AppShell
       user={{ name: session.user.name, email: session.user.email, role: session.user.role }}
@@ -125,23 +132,33 @@ export default async function StudentCoursePage({
                 <h2 className="font-display text-2xl font-black text-slate-950">Curriculum Modules</h2>
               </div>
               <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-black uppercase tracking-[0.08em] text-slate-600">
-                {course.modules.length} modules
+                {progress ? `${progress.completedModules} of ${progress.totalModules} complete` : `${course.modules.length} modules`}
               </span>
             </div>
 
-            <div className="space-y-3">
-              {course.modules.map((mod) => (
-                <div key={mod.id} className="flex gap-4 rounded-2xl border border-slate-200 bg-white/75 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--lum-primary)] font-mono text-sm font-black text-slate-950">
-                    {mod.order}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-950">{mod.title}</h3>
-                    {mod.description && <p className="mt-1 text-sm leading-6 text-slate-600">{mod.description}</p>}
-                  </div>
+            {!progress || progress.totalModules === 0 ? (
+              <p className="rounded-2xl border border-slate-200 bg-white/70 p-5 text-center text-sm text-slate-500">
+                No course modules are available yet.
+              </p>
+            ) : (
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-slate-200 bg-white/75 p-4">
+                  {progress.isComplete ? (
+                    <p className="mb-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm font-black text-emerald-700">
+                      Course Complete — {progress.completedModules} of {progress.totalModules} modules completed
+                    </p>
+                  ) : null}
+                  <CourseProgressBar
+                    completed={progress.completedModules}
+                    total={progress.totalModules}
+                    percentage={progress.percentage}
+                  />
                 </div>
-              ))}
-            </div>
+                {enrollment && (
+                  <ModuleProgressList enrollmentId={enrollment.id} modules={progress.modules} />
+                )}
+              </div>
+            )}
           </GlassCard>
         </div>
       )}

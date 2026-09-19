@@ -23,6 +23,7 @@ model CourseModule {
   updatedAt   DateTime @updatedAt
 
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progress EnrollmentModuleProgress[]
 
   @@unique([courseId, title])
   @@unique([courseId, order])
