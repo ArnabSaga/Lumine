@@ -20,7 +20,7 @@ export default async function CoursesPage() {
       price: true,
       currency: true,
       modules: {
-        orderBy: { order: "asc" },
+        orderBy: [{ order: "asc" }, { id: "asc" }],
         select: { id: true, title: true, order: true },
       },
     },

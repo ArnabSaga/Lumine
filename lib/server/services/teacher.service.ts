@@ -147,7 +147,7 @@ export async function getTeacherEnrollmentDetail(
           slug: true,
           description: true,
           modules: {
-            orderBy: { order: "asc" },
+            orderBy: [{ order: "asc" }, { id: "asc" }],
             select: { id: true, title: true, description: true, order: true },
           },
         },
