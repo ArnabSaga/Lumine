@@ -1,9 +1,51 @@
 @import "tailwindcss";
 
+/* ======================================================
+   Luminedge Design Tokens — Run 2R
+   Primary:   #FACE39 (Yellow) — CTAs, active nav, QR accents
+   Secondary: #000000 (Black) — Main text, dark buttons
+   Tertiary:  #1E293B (Slate) — Dashboard nav, dark panels
+   Neutral:   #F8FAFC (Off-white) — Dashboard surfaces
+   ====================================================== */
+
 :root {
-  color-scheme: light;
-  --background: #f8fafc;
-  --foreground: #111827;
+  color-scheme: light dark;
+
+  /* Brand palette */
+  --lum-primary: #face39;
+  --lum-primary-dark: #e5b800;
+  --lum-secondary: #000000;
+  --lum-tertiary: #1e293b;
+  --lum-neutral: #f8fafc;
+  --lum-app-bg: #07101f;
+  --lum-app-bg-2: #0d1728;
+  --lum-glass-light: rgba(255, 255, 255, 0.76);
+  --lum-glass-light-strong: rgba(255, 255, 255, 0.9);
+  --lum-glass-dark: rgba(15, 23, 42, 0.72);
+  --lum-glass-dark-strong: rgba(7, 15, 29, 0.9);
+  --lum-border-light: rgba(255, 255, 255, 0.58);
+  --lum-border-dark: rgba(255, 255, 255, 0.1);
+  --lum-shadow-soft: 0 16px 40px rgba(2, 8, 23, 0.12);
+  --lum-shadow-elevated: 0 24px 70px rgba(2, 8, 23, 0.24);
+  --lum-radius-card: 20px;
+  --lum-radius-panel: 24px;
+
+  /* Semantic */
+  --background: var(--lum-neutral);
+  --foreground: var(--lum-secondary);
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+
+  /* Status colors */
+  --status-pending: #f59e0b;
+  --status-verified: #3b82f6;
+  --status-approved: #10b981;
+  --status-failed: #ef4444;
+
+  /* Typography scale */
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-hanken), var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
 * {
@@ -19,5 +61,356 @@ body {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ====================================================
+   Luminedge Utility Classes
+   ==================================================== */
+
+.lum-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  background-color: var(--lum-primary);
+  color: var(--lum-secondary);
+  font-weight: 700;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, background-color 0.15s, opacity 0.15s;
+  text-decoration: none;
+  box-shadow: 0 10px 24px rgba(250, 206, 57, 0.24);
+}
+
+.lum-btn-primary:hover {
+  background-color: var(--lum-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(250, 206, 57, 0.3);
+}
+
+.lum-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lum-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  background-color: transparent;
+  color: var(--lum-tertiary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  border: 1.5px solid #cbd5e1;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, background-color 0.15s;
+  text-decoration: none;
+}
+
+.lum-btn-secondary:hover {
+  border-color: #94a3b8;
+  background-color: #f1f5f9;
+  transform: translateY(-1px);
+}
+
+.lum-card {
+  background: var(--lum-glass-light-strong);
+  border: 1px solid var(--lum-border-light);
+  border-radius: var(--lum-radius-card);
+  padding: 1.5rem;
+  box-shadow: var(--lum-shadow-soft);
+}
+
+.lum-input {
+  display: block;
+  width: 100%;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  background: #ffffff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+
+.lum-input:focus {
+  border-color: var(--lum-primary);
+  box-shadow: 0 0 0 3px rgba(250, 206, 57, 0.2);
+}
+
+.lum-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #475569;
+  margin-bottom: 0.375rem;
+}
+
+/* Staff/dashboard dark panels */
+.lum-dark-panel {
+  background-color: var(--lum-tertiary);
+  color: #f1f5f9;
+}
+
+.lum-nav-active {
+  color: var(--lum-primary);
+  font-weight: 700;
+}
+
+/* Status badges */
+.lum-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lum-badge-pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.lum-badge-verified {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.lum-badge-approved {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.lum-badge-failed {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* ====================================================
+   Run 2R Full Website UI Polish
+   ==================================================== */
+
+.lum-app-bg {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(250, 206, 57, 0.18), transparent 32rem),
+    radial-gradient(circle at 85% 15%, rgba(59, 130, 246, 0.16), transparent 28rem),
+    linear-gradient(135deg, var(--lum-app-bg), var(--lum-app-bg-2));
+}
+
+.lum-app-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 70%);
+}
+
+.lum-page-container {
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.lum-page-container-narrow {
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.lum-page-container-scanner {
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.lum-public-section {
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 4rem 1rem;
+}
+
+.lum-glass-light {
+  background: var(--lum-glass-light);
+  border: 1px solid var(--lum-border-light);
+  box-shadow: var(--lum-shadow-soft);
+}
+
+.lum-glass-dark {
+  background: var(--lum-glass-dark);
+  border: 1px solid var(--lum-border-dark);
+  box-shadow: var(--lum-shadow-elevated);
+}
+
+.lum-panel {
+  border-radius: var(--lum-radius-panel);
+  backdrop-filter: blur(18px);
+}
+
+.lum-card-hover {
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.lum-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(250, 206, 57, 0.5);
+  box-shadow: var(--lum-shadow-elevated);
+}
+
+.lum-page-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: 0;
+  color: #0f172a;
+}
+
+.lum-page-title-light {
+  color: #f8fafc;
+}
+
+.lum-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #b45309;
+}
+
+.lum-muted {
+  color: #64748b;
+}
+
+.lum-muted-light {
+  color: #cbd5e1;
+}
+
+.lum-alert {
+  border-radius: 14px;
+  border: 1px solid;
+  padding: 0.8rem 1rem;
+  font-size: 0.875rem;
+}
+
+.lum-alert-success {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.24);
+  color: #047857;
+}
+
+.lum-alert-warning {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.26);
+  color: #92400e;
+}
+
+.lum-alert-error {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.24);
+  color: #b91c1c;
+}
+
+.lum-alert-info {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.24);
+  color: #1d4ed8;
+}
+
+.lum-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.lum-table th {
+  padding: 0.7rem 0.85rem;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.lum-table td {
+  padding: 0.85rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  vertical-align: top;
+}
+
+.lum-skeleton {
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(226, 232, 240, 0.72), rgba(248, 250, 252, 0.9), rgba(226, 232, 240, 0.72));
+  background-size: 200% 100%;
+  animation: lum-skeleton 1.4s ease-in-out infinite;
+}
+
+@keyframes lum-skeleton {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (min-width: 768px) {
+  .lum-page-container,
+  .lum-page-container-narrow,
+  .lum-page-container-scanner,
+  .lum-public-section {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lum-page-container,
+  .lum-page-container-narrow,
+  .lum-page-container-scanner,
+  .lum-public-section {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

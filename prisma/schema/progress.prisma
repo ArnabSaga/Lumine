@@ -1,0 +1,13 @@
+model EnrollmentModuleProgress {
+  id           String   @id @default(cuid())
+  enrollmentId String
+  moduleId     String
+  completedAt  DateTime @default(now())
+
+  enrollment Enrollment   @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  module     CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, moduleId])
+  @@index([enrollmentId])
+  @@index([moduleId])
+}

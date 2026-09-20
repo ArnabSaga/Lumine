@@ -5,6 +5,18 @@ enum UserRole {
   TEACHER
 }
 
+enum EnrollmentStatus {
+  PENDING_PAYMENT
+  PAYMENT_VERIFIED
+  APPROVED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
 enum AdmissionStatus {
   REGISTERED
   PENDING_ACCOUNTS_APPROVAL

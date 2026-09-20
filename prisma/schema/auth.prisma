@@ -11,12 +11,15 @@ model User {
   sessions Session[]
   accounts Account[]
 
-  registrationLinks   RegistrationLink[]       @relation("RegistrationLinkBDM")
-  registeredStudents  Student[]                @relation("StudentRegistrationBDM")
-  submittedAdmissions Admission[]              @relation("AdmissionSubmittingBDM")
-  assignedAdmissions  Admission[]              @relation("AdmissionTeacher")
-  approvedAdmissions  Admission[]              @relation("AdmissionAccountsApprover")
-  historyEvents       AdmissionStatusHistory[] @relation("AdmissionHistoryActor")
+  student             Student?
+  teacherEnrollments  Enrollment[]              @relation("EnrollmentTeacher")
+  approvedEnrollments Enrollment[]              @relation("EnrollmentApprover")
+  statusHistory       EnrollmentStatusHistory[] @relation("EnrollmentHistoryActor")
+  registrationQrs     StudentRegistrationQr[]   @relation("RegistrationQrBdm")
+  bdmAdmissions       Admission[]               @relation("AdmissionBdm")
+  teacherAdmissions   Admission[]               @relation("AdmissionTeacher")
+  accountsAdmissions  Admission[]               @relation("AdmissionAccountsApprover")
+  admissionHistory    AdmissionStatusHistory[]  @relation("AdmissionHistoryActor")
 
   @@map("user")
 }

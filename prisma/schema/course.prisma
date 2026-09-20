@@ -1,13 +1,17 @@
 model Course {
   id          String   @id @default(cuid())
+  slug        String   @unique
   name        String   @unique
   description String?
+  price       Decimal  @db.Decimal(12, 2)
+  currency    String   @default("BDT")
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  modules    CourseModule[]
-  admissions Admission[]
+  modules     CourseModule[]
+  enrollments Enrollment[]
+  admissions  Admission[]
 }
 
 model CourseModule {
@@ -19,7 +23,8 @@ model CourseModule {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course   Course                     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progress EnrollmentModuleProgress[]
 
   @@unique([courseId, title])
   @@unique([courseId, order])
