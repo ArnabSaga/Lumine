@@ -84,6 +84,43 @@ export async function listRegistrationQrs(bdmUserId: string) {
   }));
 }
 
+/**
+ * Revokes an ACTIVE registration QR. Preconditions (all enforced):
+ * BDM role (route-level), QR owned by the caller, never used, never revoked,
+ * no admission created from it. REGISTERED QRs are rejected, not revoked.
+ */
+export async function revokeRegistrationQr(
+  bdmUserId: string,
+  qrId: string
+): Promise<ServiceResult<{ id: string; revokedAt: string }>> {
+  const qr = await prisma.studentRegistrationQr.findFirst({
+    where: { id: qrId, bdmUserId },
+    select: { id: true, usedAt: true, revokedAt: true, admission: { select: { id: true } } },
+  });
+
+  if (!qr) {
+    return { ok: false, status: 404, message: "Registration QR not found." };
+  }
+  if (qr.usedAt || qr.revokedAt || qr.admission) {
+    return { ok: false, status: 409, message: "Only unused active QRs can be revoked." };
+  }
+
+  const updated = await prisma.studentRegistrationQr.updateMany({
+    where: { id: qrId, bdmUserId, usedAt: null, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+
+  if (updated.count !== 1) {
+    return { ok: false, status: 409, message: "Registration QR is no longer revocable." };
+  }
+
+  const revoked = await prisma.studentRegistrationQr.findUniqueOrThrow({
+    where: { id: qrId },
+    select: { id: true, revokedAt: true },
+  });
+  return { ok: true, data: { id: revoked.id, revokedAt: revoked.revokedAt?.toISOString() ?? new Date().toISOString() } };
+}
+
 export async function getRegistrationQrForPublicToken(token: string) {
   return await prisma.studentRegistrationQr.findUnique({
     where: { token },

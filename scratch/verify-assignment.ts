@@ -333,6 +333,68 @@ async function run() {
     410
   );
 
+  // --- Registration QR UX closure (single-use lifecycle + owner isolation) ---
+  const uxQr = await createBdmQr(bdm1Cookie);
+
+  const qrListRes = await fetch(`${BASE_URL}/api/bdm/registration-qrs`, { headers: { Cookie: bdm1Cookie } });
+  expectStatus("BDM QR list", qrListRes, 200);
+  const qrList = (await qrListRes.json()) as { qrs: Array<{ id: string; token: string }> };
+  const listedUx = qrList.qrs.find((item) => item.id === uxQr.id);
+  assert(listedUx?.token === uxQr.token, "Owner QR list must carry the copy/download token.");
+  expectStatus("copy/download URL resolves", await fetch(`${BASE_URL}/register/${encodeURIComponent(uxQr.token)}`), 200);
+
+  expectStatus(
+    "BDM2 revoke foreign QR",
+    await fetch(`${BASE_URL}/api/bdm/registration-qrs/${uxQr.id}/revoke`, { method: "POST", headers: { Cookie: bdm2Cookie } }),
+    404
+  );
+  expectStatus(
+    "revoke own ACTIVE QR",
+    await fetch(`${BASE_URL}/api/bdm/registration-qrs/${uxQr.id}/revoke`, { method: "POST", headers: { Cookie: bdm1Cookie } }),
+    200
+  );
+
+  const revokedPreflight = await fetch(`${BASE_URL}/api/admissions/register/preflight`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: uxQr.token, email: `revoked-${runId}@student.test` }),
+  });
+  expectStatus("revoked QR preflight rejected", revokedPreflight, 409);
+  const revokedPage = await fetch(`${BASE_URL}/register/${encodeURIComponent(uxQr.token)}`);
+  expectStatus("revoked register page", revokedPage, 200);
+  assert((await revokedPage.text()).includes("no longer active"), "Revoked QR page must say the link is no longer active.");
+
+  expectStatus(
+    "revoke REGISTERED QR",
+    await fetch(`${BASE_URL}/api/bdm/registration-qrs/${qr.id}/revoke`, { method: "POST", headers: { Cookie: bdm1Cookie } }),
+    409
+  );
+
+  const secondCookie = await signUpStudent(`second-${runId}@student.test`, password, `Second ${runId}`);
+  const secondAttempt = await fetch(`${BASE_URL}/api/admissions/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: secondCookie },
+    body: JSON.stringify({ token: qr.token, phone: "01700000000", address: "Second address", education: "Bachelor" }),
+  });
+  expectStatus("used QR second admission rejected", secondAttempt, 409);
+
+  const usedPage = await fetch(`${BASE_URL}/register/${encodeURIComponent(qr.token)}`);
+  expectStatus("used register page", usedPage, 200);
+  assert((await usedPage.text()).includes("already been used"), "Used QR page must say the link was already used.");
+  expectStatus("invalid register page", await fetch(`${BASE_URL}/register/definitely-not-a-real-token`), 404);
+
+  const accountsQueue = await (
+    await fetch(`${BASE_URL}/api/accounts/admissions`, { headers: { Cookie: accountsCookie } })
+  ).json();
+  assert(!JSON.stringify(accountsQueue).includes(uxQr.token), "Accounts DTO leaked a raw registration token.");
+  const teacherRoster = await (
+    await fetch(`${BASE_URL}/api/teacher/enrollments`, { headers: { Cookie: teacher1Cookie } })
+  ).json();
+  assert(!JSON.stringify(teacherRoster).includes(uxQr.token), "Teacher DTO leaked a raw registration token.");
+
+  // Cleanup spare QR (revoked, no admission attached).
+  await prisma.studentRegistrationQr.deleteMany({ where: { id: uxQr.id, admission: null } });
+
   console.log("Assignment acceptance suite passed.");
 }
 

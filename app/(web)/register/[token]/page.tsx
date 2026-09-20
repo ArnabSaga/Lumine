@@ -20,15 +20,19 @@ export default async function RegistrationQrPage({ params }: { params: Promise<{
   const qr = await getRegistrationQrForPublicToken(token);
   if (!qr) notFound();
 
-  const unavailable = Boolean(qr.revokedAt || qr.usedAt || qr.admission);
+  const revoked = Boolean(qr.revokedAt);
+  const used = Boolean(!revoked && (qr.usedAt || qr.admission));
+  const unavailable = revoked || used;
 
   return (
     <AuthShell
       title={unavailable ? "Registration link unavailable" : "Complete QR registration"}
       description={
-        unavailable
-          ? "This registration QR has already been used or is no longer available."
-          : `This student registration is linked to ${qr.bdm.name}. Create your student account and submit admission details.`
+        revoked
+          ? "This registration link is no longer active."
+          : used
+            ? "This registration link has already been used."
+            : `This student registration is linked to ${qr.bdm.name}. Create your student account and submit admission details.`
       }
     >
       {unavailable ? (

@@ -7,10 +7,12 @@ export default function GenerateQrButton() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState(false);
 
   async function createQr() {
     setLoading(true);
     setError(null);
+    setCreated(false);
     try {
       const res = await fetch("/api/bdm/registration-qrs", { method: "POST" });
       if (!res.ok) {
@@ -18,6 +20,7 @@ export default function GenerateQrButton() {
         setError(data?.error ?? "Could not create registration QR.");
         return;
       }
+      setCreated(true);
       router.refresh();
     } finally {
       setLoading(false);
@@ -29,6 +32,11 @@ export default function GenerateQrButton() {
       <button type="button" className="lum-btn-primary" onClick={createQr} disabled={loading}>
         {loading ? "Creating QR..." : "Generate Registration QR"}
       </button>
+      {created && !error && (
+        <p className="text-sm font-semibold text-emerald-700">
+          Registration QR created successfully. Share this QR with one Student only.
+        </p>
+      )}
       {error && <p className="text-sm font-semibold text-red-700">{error}</p>}
     </div>
   );
