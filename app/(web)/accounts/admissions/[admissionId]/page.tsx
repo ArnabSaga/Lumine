@@ -47,7 +47,7 @@ export default async function AccountsAdmissionDetailPage({ params }: { params: 
 
         <SectionCard title="Approval" description="Accounts approval creates the approved Enrollment, manual Payment, and Teacher assignment.">
           {admission.status === AdmissionStatus.PENDING_ACCOUNTS_APPROVAL ? (
-            <ApproveAdmissionButton admissionId={admission.id} />
+            <ApproveAdmissionButton admissionId={admission.id} teacherName={admission.assignedTeacher?.name ?? null} />
           ) : (
             <StatusBadge status={admission.status} />
           )}

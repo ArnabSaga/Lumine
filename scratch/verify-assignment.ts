@@ -242,6 +242,29 @@ async function run() {
   });
   assert(enrollmentBeforeApproval === 0, "Enrollment exists before Accounts approval.");
 
+  const submittedAdmission = await prisma.admission.findUniqueOrThrow({ where: { id: registered.admissionId } });
+  assert(submittedAdmission.status === "PENDING_ACCOUNTS_APPROVAL", "Admission did not reach pending approval.");
+  assert(submittedAdmission.enrollmentId === null, "Enrollment linked before Accounts approval.");
+
+  const pendingQueue = (await (
+    await fetch(`${BASE_URL}/api/accounts/admissions`, { headers: { Cookie: accountsCookie } })
+  ).json()) as { total: number; items: Array<{ reference: string }> };
+  assert(
+    pendingQueue.items.some((item) => item.reference === registered.reference),
+    "Pending admission missing from Accounts queue."
+  );
+  const accountsPreview = await (
+    await fetch(`${BASE_URL}/accounts/dashboard`, { headers: { Cookie: accountsCookie } })
+  ).text();
+  assert(accountsPreview.includes(registered.reference), "Pending admission missing from Accounts dashboard preview.");
+  const teacherDashboardBefore = await (
+    await fetch(`${BASE_URL}/teacher/dashboard`, { headers: { Cookie: teacher1Cookie } })
+  ).text();
+  assert(
+    !teacherDashboardBefore.includes(`${runId}@student.test`),
+    "Teacher dashboard shows student before Accounts approval."
+  );
+
   const accountsList = await fetch(`${BASE_URL}/api/accounts/admissions`, { headers: { Cookie: accountsCookie } });
   expectStatus("Accounts queue", accountsList, 200);
   assertNoLeak("Accounts queue", await accountsList.json());
@@ -295,6 +318,32 @@ async function run() {
     await fetch(`${BASE_URL}/api/teacher/enrollments/${finalAdmission.enrollmentId}`, { headers: { Cookie: teacher2Cookie } }),
     404
   );
+  const approvedAdmission = await prisma.admission.findUniqueOrThrow({ where: { id: registered.admissionId } });
+  assert(approvedAdmission.status === "ASSIGNED_TO_TEACHER", "Admission did not reach assigned state.");
+  const approvedEnrollment = await prisma.enrollment.findUniqueOrThrow({
+    where: { id: finalAdmission.enrollmentId },
+  });
+  assert(approvedEnrollment.status === "APPROVED", "Enrollment is not approved.");
+  assert(approvedEnrollment.assignedTeacherId === teacher1.id, "Enrollment assigned to the wrong teacher.");
+  const postQueue = (await (
+    await fetch(`${BASE_URL}/api/accounts/admissions`, { headers: { Cookie: accountsCookie } })
+  ).json()) as { items: Array<{ reference: string }> };
+  assert(
+    !postQueue.items.some((item) => item.reference === registered.reference),
+    "Approved admission still present in Accounts pending queue."
+  );
+  const postPreview = await (
+    await fetch(`${BASE_URL}/accounts/dashboard`, { headers: { Cookie: accountsCookie } })
+  ).text();
+  assert(!postPreview.includes(registered.reference), "Approved admission still present in dashboard preview.");
+  const teacherDashboardAfter = await (
+    await fetch(`${BASE_URL}/teacher/dashboard`, { headers: { Cookie: teacher1Cookie } })
+  ).text();
+  assert(teacherDashboardAfter.includes(`${runId}@student.test`), "Assigned teacher dashboard missing student.");
+  const teacher2DashboardAfter = await (
+    await fetch(`${BASE_URL}/teacher/dashboard`, { headers: { Cookie: teacher2Cookie } })
+  ).text();
+  assert(!teacher2DashboardAfter.includes(`${runId}@student.test`), "Other teacher dashboard shows student.");
   expectStatus(
     "Student sees approved course progress",
     await fetch(`${BASE_URL}/api/student/enrollments/${finalAdmission.enrollmentId}/progress`, { headers: { Cookie: registered.cookie } }),

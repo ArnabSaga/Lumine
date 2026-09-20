@@ -99,7 +99,7 @@ export async function getBdmDashboardData(userId: string) {
 export async function getAccountsDashboardData() {
   const today = getBangladeshTodayRange();
 
-  const [awaitingApproval, approvedToday, totalApproved, paymentGroups, recentActivity] = await Promise.all([
+  const [awaitingApproval, approvedToday, totalApproved, paymentGroups, recentActivity, pendingAdmissions] = await Promise.all([
     prisma.admission.count({ where: { status: AdmissionStatus.PENDING_ACCOUNTS_APPROVAL } }),
     prisma.admission.count({
       where: {
@@ -126,6 +126,20 @@ export async function getAccountsDashboardData() {
         course: { select: { name: true } },
       },
     }),
+    prisma.admission.findMany({
+      where: { status: AdmissionStatus.PENDING_ACCOUNTS_APPROVAL },
+      orderBy: [{ submittedAt: "desc" }, { id: "desc" }],
+      take: 5,
+      select: {
+        id: true,
+        reference: true,
+        status: true,
+        paidAmount: true,
+        currency: true,
+        student: { select: { user: { select: { name: true, email: true } } } },
+        course: { select: { name: true } },
+      },
+    }),
   ]);
 
   const verifiedPaymentValues = paymentGroups.map((group) => ({
@@ -138,6 +152,16 @@ export async function getAccountsDashboardData() {
     approvedToday,
     totalApproved,
     verifiedPaymentValues,
+    pendingAdmissions: pendingAdmissions.map((item) => ({
+      id: item.id,
+      reference: item.reference,
+      status: item.status,
+      paidAmount: item.paidAmount ? item.paidAmount.toString() : null,
+      currency: item.currency,
+      studentName: item.student.user.name,
+      studentEmail: item.student.user.email,
+      courseName: item.course?.name ?? "Not selected",
+    })),
     recentActivity: recentActivity.map((item) => ({
       id: item.id,
       reference: item.reference,

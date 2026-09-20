@@ -411,6 +411,7 @@ export async function getAccountsAdmissionDetail(admissionId: string) {
       classStartingDate: true,
       student: { select: { user: { select: { name: true, email: true } } } },
       course: { select: { id: true, name: true, slug: true } },
+      assignedTeacher: { select: { name: true } },
       statusHistory: {
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         select: { id: true, fromStatus: true, toStatus: true, createdAt: true },
