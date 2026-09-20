@@ -83,7 +83,12 @@ export default async function BdmAdmissionsPage({
                     <td><StatusBadge status={admission.status} /></td>
                     <td className="text-sm text-slate-500">{new Date(admission.createdAt).toLocaleDateString("en-BD")}</td>
                     <td>
-                      <Link href={`/bdm/admissions/${admission.id}`} className="lum-btn-secondary px-3 py-2 text-xs">Open</Link>
+                      <Link
+                        href={`/bdm/admissions/${admission.id}`}
+                        className="lum-btn-secondary px-3 py-2 text-xs"
+                      >
+                        {admission.status === "REGISTERED" ? "Complete Admission" : "View"}
+                      </Link>
                     </td>
                   </tr>
                 ))}

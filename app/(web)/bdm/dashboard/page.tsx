@@ -20,7 +20,9 @@ export default async function BdmDashboardPage() {
       />
 
       <div className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard metricId="registered" label="Registered" value={dashboard.registered} helper="Needs BDM entry" tone="info" />
+        <Link href="/bdm/admissions?status=REGISTERED" aria-label="View registered admissions needing BDM entry">
+          <StatCard metricId="registered" label="Registered" value={dashboard.registered} helper="Needs BDM entry" tone="info" />
+        </Link>
         <StatCard metricId="awaiting-accounts" label="Awaiting Accounts" value={dashboard.awaitingAccounts} helper="Submitted for approval" tone="warning" />
         <StatCard metricId="assigned" label="Assigned" value={dashboard.assigned} helper="Approved and assigned" tone="success" />
         <StatCard metricId="submitted-today" label="Submitted today" value={dashboard.submittedToday} helper="Bangladesh business day" tone="neutral" />
@@ -47,7 +49,7 @@ export default async function BdmDashboardPage() {
             <table className="lum-table">
               <thead>
                 <tr>
-                  {["Student", "Course", "Reference", "Status", "Updated"].map((h) => (
+                  {["Student", "Course", "Reference", "Status", "Updated", "Action"].map((h) => (
                     <th key={h}>{h}</th>
                   ))}
                 </tr>
@@ -64,6 +66,14 @@ export default async function BdmDashboardPage() {
                     <td>{activity.status.replaceAll("_", " ")}</td>
                     <td className="text-sm text-slate-500">
                       {new Date(activity.updatedAt).toLocaleDateString("en-BD")}
+                    </td>
+                    <td>
+                      <Link
+                        href={`/bdm/admissions/${activity.id}`}
+                        className="lum-btn-secondary px-3 py-2 text-xs"
+                      >
+                        {activity.status === "REGISTERED" ? "Complete Admission" : "View"}
+                      </Link>
                     </td>
                   </tr>
                 ))}

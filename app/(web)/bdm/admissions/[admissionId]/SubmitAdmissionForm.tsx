@@ -20,10 +20,12 @@ export default function SubmitAdmissionForm({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setSubmitted(false);
     setLoading(true);
     const form = new FormData(e.currentTarget);
     try {
@@ -43,6 +45,7 @@ export default function SubmitAdmissionForm({
         setError(data?.error ?? "Could not submit admission.");
         return;
       }
+      setSubmitted(true);
       router.refresh();
     } finally {
       setLoading(false);
@@ -56,6 +59,11 @@ export default function SubmitAdmissionForm({
   return (
     <form onSubmit={submit} className="grid gap-4">
       {error && <Alert tone="error">{error}</Alert>}
+      {submitted && !error && (
+        <div className="lum-alert lum-alert-success" role="status">
+          Submitted to Accounts successfully.
+        </div>
+      )}
       <label>
         <span className="lum-label">Course</span>
         <select className="lum-input" name="courseId" required defaultValue="">

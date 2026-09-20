@@ -395,6 +395,47 @@ async function run() {
   // Cleanup spare QR (revoked, no admission attached).
   await prisma.studentRegistrationQr.deleteMany({ where: { id: uxQr.id, admission: null } });
 
+  // --- BDM dashboard UX closure (queue visibility + Complete action) ---
+  const queueBefore = (await (
+    await fetch(`${BASE_URL}/api/accounts/admissions`, { headers: { Cookie: accountsCookie } })
+  ).json()) as { total: number };
+
+  const actionQr = await createBdmQr(bdm1Cookie);
+  const actionRegistered = await completeQrRegistration({
+    token: actionQr.token,
+    email: `ux-${runId}@student.test`,
+    name: `Ux Student ${runId}`,
+    password,
+  });
+
+  const queuePage = await fetch(`${BASE_URL}/bdm/admissions?status=REGISTERED`, {
+    headers: { Cookie: bdm1Cookie },
+  });
+  expectStatus("BDM REGISTERED queue page", queuePage, 200);
+  const queueHtml = await queuePage.text();
+  const uxAdmission = await prisma.admission.findUniqueOrThrow({ where: { id: actionRegistered.admissionId } });
+  assert(queueHtml.includes(uxAdmission.reference), "REGISTERED admission missing from BDM queue page.");
+  assert(queueHtml.includes("Complete Admission"), "Complete Admission action missing from BDM queue.");
+  assert(
+    queueHtml.includes(`/bdm/admissions/${actionRegistered.admissionId}`),
+    "Complete Admission link must route to the admission detail."
+  );
+
+  expectStatus(
+    "BDM2 opening BDM1 admission detail",
+    await fetch(`${BASE_URL}/bdm/admissions/${actionRegistered.admissionId}`, { headers: { Cookie: bdm2Cookie } }),
+    404
+  );
+
+  const queueAfter = (await (
+    await fetch(`${BASE_URL}/api/accounts/admissions`, { headers: { Cookie: accountsCookie } })
+  ).json()) as { total: number; items: Array<{ reference: string }> };
+  assert(queueAfter.total === queueBefore.total + 1, "Accounts queue count did not grow by one pending admission.");
+  assert(
+    queueAfter.items.some((item) => item.reference === uxAdmission.reference),
+    "Fresh REGISTERED admission missing from Accounts queue."
+  );
+
   console.log("Assignment acceptance suite passed.");
 }
 
