@@ -45,6 +45,7 @@ export default async function TeacherEnrollmentDetailPage({
               ["Course", detail.courseName],
               ["Reference", detail.reference],
               ["Approved date", detail.approvedAt ? new Date(detail.approvedAt).toLocaleDateString() : "Pending"],
+              ["Class start", detail.classStartingDate ?? "Pending"],
             ].map(([label, value]) => (
               <div key={label}>
                 <p className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">{label}</p>

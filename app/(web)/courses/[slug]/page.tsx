@@ -37,7 +37,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ s
 
   if (!course) notFound();
 
-  let enrollUrl = `/register?course=${encodeURIComponent(course.slug)}`;
+  let enrollUrl = "/register";
   let isStaff = false;
   let staffDashboardUrl = "/staff/login";
 
@@ -47,9 +47,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ s
       const studentProfile = await prisma.student.findUnique({
         where: { userId: session.user.id },
       });
-      enrollUrl = studentProfile
-        ? `/student/dashboard?course=${encodeURIComponent(course.slug)}`
-        : `/student/complete-profile?course=${encodeURIComponent(course.slug)}`;
+      enrollUrl = studentProfile ? "/student/dashboard" : "/register";
     } else {
       isStaff = true;
       staffDashboardUrl = getDashboardRouteForRole(role);
@@ -103,7 +101,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ s
               {course.currency} {Number(course.price).toLocaleString()}
             </p>
             <p className="mt-4 text-sm leading-6 text-slate-600">
-              Enroll securely, complete the demo checkout, then show your verification QR to staff for approval.
+              Registration is completed through a BDM issued QR. After BDM entry and Accounts approval, this course opens in your student portal.
             </p>
             {isStaff ? (
               <Link href={staffDashboardUrl} className="lum-btn-secondary mt-6 w-full">
@@ -111,7 +109,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ s
               </Link>
             ) : (
               <Link href={enrollUrl} className="lum-btn-primary mt-6 w-full">
-                Enroll Now
+                Use BDM QR
               </Link>
             )}
             {!session?.user && !isStaff && (

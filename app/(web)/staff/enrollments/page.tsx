@@ -37,7 +37,7 @@ export default async function StaffEnrollmentsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await requirePageRole([UserRole.BDM, UserRole.ACCOUNTS], "/staff/login");
+  const session = await requirePageRole([UserRole.ACCOUNTS], "/staff/login");
   const rawParams = await searchParams;
 
   const parsed = staffEnrollmentQuerySchema.safeParse({

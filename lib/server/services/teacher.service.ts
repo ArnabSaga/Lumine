@@ -25,6 +25,7 @@ export interface TeacherEnrollmentDetail {
   courseSlug: string;
   courseDescription: string | null;
   approvedAt: string | null;
+  classStartingDate: string | null;
   modules: Array<{
     id: string;
     title: string;
@@ -74,6 +75,7 @@ export async function getTeacherDashboardEnrollments(
       id: true,
       reference: true,
       approvedAt: true,
+      admission: { select: { classStartingDate: true } },
       student: {
         select: {
           user: {
@@ -134,6 +136,7 @@ export async function getTeacherEnrollmentDetail(
       id: true,
       reference: true,
       approvedAt: true,
+      admission: { select: { classStartingDate: true } },
       student: {
         select: {
           user: {
@@ -166,6 +169,9 @@ export async function getTeacherEnrollmentDetail(
     courseSlug: enrollment.course.slug,
     courseDescription: enrollment.course.description,
     approvedAt: enrollment.approvedAt ? enrollment.approvedAt.toISOString() : null,
+    classStartingDate: enrollment.admission?.classStartingDate
+      ? enrollment.admission.classStartingDate.toISOString().slice(0, 10)
+      : null,
     modules: enrollment.course.modules,
   };
 }

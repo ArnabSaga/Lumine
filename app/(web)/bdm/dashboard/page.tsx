@@ -16,38 +16,38 @@ export default async function BdmDashboardPage() {
         light
         eyebrow="BDM portal"
         title={`Welcome, ${session.user.name}`}
-        description="Review your recent approvals and open the scanner when a student is ready for verification."
+        description="Issue student registration QRs, manage your own Admissions, and submit completed records to Accounts."
       />
 
       <div className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard metricId="approved-by-me" label="Approved by me" value={dashboard.approvedByMe} helper="Approved from your account" tone="success" />
-        <StatCard metricId="awaiting-approval" label="Awaiting approval" value={dashboard.awaitingApproval} helper="Global verified queue" tone="warning" />
-        <StatCard metricId="approved-today" label="Approved today" value={dashboard.approvedToday} helper="Bangladesh business day" tone="info" />
-        <StatCard metricId="total-verified" label="Total verified" value={dashboard.totalVerified} helper="Verified or approved" tone="neutral" />
+        <StatCard metricId="registered" label="Registered" value={dashboard.registered} helper="Needs BDM entry" tone="info" />
+        <StatCard metricId="awaiting-accounts" label="Awaiting Accounts" value={dashboard.awaitingAccounts} helper="Submitted for approval" tone="warning" />
+        <StatCard metricId="assigned" label="Assigned" value={dashboard.assigned} helper="Approved and assigned" tone="success" />
+        <StatCard metricId="submitted-today" label="Submitted today" value={dashboard.submittedToday} helper="Bangladesh business day" tone="neutral" />
       </div>
 
       <div className="mb-6">
         <CalloutCard
-          title="Scan and verify an enrollment"
-          description="Ask the student to show their QR code, then verify payment status and assign the correct teacher."
-          href="/staff/scan"
-          actionLabel="Open QR Scanner"
+          title="Create a student registration QR"
+          description="Generate a single use QR so a student can register and become linked to your BDM account."
+          href="/bdm/registration-qrs"
+          actionLabel="Open Registration QRs"
         />
       </div>
 
-      <SectionCard title="Recent approval activity" description="Latest completed approvals from real enrollment records.">
+      <SectionCard title="Recent Admission activity" description="Latest Admissions linked to your own BDM QR registrations.">
         {dashboard.recentActivity.length === 0 ? (
           <EmptyState
-            title="No approvals yet"
-            description="Use the QR scanner to approve your first verified enrollment."
-            action={<Link href="/staff/scan" className="lum-btn-primary">Open scanner</Link>}
+            title="No Admissions yet"
+            description="Generate a registration QR to start your first student Admission."
+            action={<Link href="/bdm/registration-qrs" className="lum-btn-primary">Generate QR</Link>}
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="lum-table">
               <thead>
                 <tr>
-                  {["Student", "Course", "Teacher", "Reference", "Approved"].map((h) => (
+                  {["Student", "Course", "Reference", "Status", "Updated"].map((h) => (
                     <th key={h}>{h}</th>
                   ))}
                 </tr>
@@ -60,10 +60,10 @@ export default async function BdmDashboardPage() {
                       <p className="max-w-[18rem] truncate text-xs text-slate-500">{activity.studentEmail}</p>
                     </td>
                     <td className="font-semibold text-slate-700">{activity.courseName}</td>
-                    <td>{activity.teacherName}</td>
                     <td className="font-mono text-xs text-slate-500">{activity.reference}</td>
+                    <td>{activity.status.replaceAll("_", " ")}</td>
                     <td className="text-sm text-slate-500">
-                      {activity.approvedAt ? new Date(activity.approvedAt).toLocaleDateString("en-BD") : "Pending"}
+                      {new Date(activity.updatedAt).toLocaleDateString("en-BD")}
                     </td>
                   </tr>
                 ))}

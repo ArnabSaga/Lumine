@@ -108,15 +108,17 @@ function getRoleNav(role: string): NavItem[] {
   if (role === "ACCOUNTS") {
     return [
       { href: "/accounts/dashboard", label: "Dashboard" },
-      { href: "/staff/enrollments", label: "Enrollments" },
-      { href: "/staff/scan", label: "Scan QR" },
+      { href: "/accounts/admissions", label: "Admissions" },
     ];
   }
-  return [
-    { href: getDashboardRouteForRole(role), label: "Dashboard" },
-    { href: "/staff/enrollments", label: "Enrollments" },
-    { href: "/staff/scan", label: "Scan QR" },
-  ];
+  if (role === "BDM") {
+    return [
+      { href: "/bdm/dashboard", label: "Dashboard" },
+      { href: "/bdm/admissions", label: "Admissions" },
+      { href: "/bdm/registration-qrs", label: "Registration QRs" },
+    ];
+  }
+  return [{ href: getDashboardRouteForRole(role), label: "Dashboard" }];
 }
 
 export function AppShell({

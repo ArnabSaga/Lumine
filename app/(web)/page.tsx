@@ -61,9 +61,9 @@ export default async function HomePage() {
 
           <GlassCard dark className="relative overflow-hidden">
             <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-[var(--lum-primary)]/20 blur-3xl" />
-            <p className="lum-eyebrow mb-4 text-[var(--lum-primary)]">Run 2R workflow</p>
+            <p className="lum-eyebrow mb-4 text-[var(--lum-primary)]">Admission workflow</p>
             <div className="space-y-4">
-              {["Browse a course", "Create student account", "Complete profile", "Pay demo checkout", "Show QR for approval", "Access approved course"].map((step, index) => (
+              {["BDM issues registration QR", "Student submits registration", "BDM enters admission details", "Accounts approves payment", "Teacher receives assigned student", "Student accesses approved course"].map((step, index) => (
                 <div key={step} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 p-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--lum-primary)] font-mono text-sm font-black text-slate-950">
                     {index + 1}
@@ -81,7 +81,7 @@ export default async function HomePage() {
           light
           eyebrow="Courses"
           title="Practical programs with clear next steps"
-          description="Each course includes transparent pricing, ordered modules, and an enrollment path that keeps student access secure."
+          description="Each course includes transparent pricing, ordered modules, and a BDM led admission path that keeps student access secure."
           action={<Link href="/courses" className="lum-btn-primary">View all courses</Link>}
         />
         <div className="grid gap-5 md:grid-cols-3">
@@ -113,9 +113,9 @@ export default async function HomePage() {
           <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
               <p className="lum-eyebrow mb-3 text-[var(--lum-primary)]">Staff verification</p>
-              <h2 className="font-display text-3xl font-black text-white">One QR connects payment verification to course access.</h2>
+              <h2 className="font-display text-3xl font-black text-white">One BDM QR starts admission, Accounts approval opens course access.</h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                Students enroll and pay through the portal. Staff scan the QR, assign the correct teacher, and the exact approved course opens for learning.
+                Students register through a BDM QR. BDM enters the course and payment details, Accounts approves, and the assigned teacher sees the approved student.
               </p>
             </div>
             <Link href="/staff/login" className="lum-btn-primary">

@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ui/primitives";
 export const metadata = { title: "Scan QR — Luminedge Staff" };
 
 export default async function StaffScanPage() {
-  const session = await requirePageRole([UserRole.BDM, UserRole.ACCOUNTS], "/staff/login");
+  const session = await requirePageRole([UserRole.ACCOUNTS], "/staff/login");
 
   const teachers = await prisma.user.findMany({
     where: { role: UserRole.TEACHER },

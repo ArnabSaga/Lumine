@@ -5,6 +5,9 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, UserRole } from "../generated/prisma/client";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
+import QRCode from "qrcode";
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -109,6 +112,9 @@ const COURSES: CourseSeedData[] = [
   },
 ];
 
+const DEMO_REGISTRATION_QR_TOKEN =
+  "demo-registration-qr-luminedge-local-2026-9c5ca9b82f7247589f4d6a3e6e725ad4";
+
 async function main() {
   console.log("Starting seed process...");
 
@@ -194,6 +200,32 @@ async function main() {
       });
     });
   }
+
+  const bdmOne = await prisma.user.findUnique({
+    where: { email: "bdm1@example.com" },
+    select: { id: true },
+  });
+  if (!bdmOne) {
+    throw new Error("BDM One was not created.");
+  }
+
+  await prisma.studentRegistrationQr.upsert({
+    where: { token: DEMO_REGISTRATION_QR_TOKEN },
+    update: {
+      bdmUserId: bdmOne.id,
+      revokedAt: null,
+    },
+    create: {
+      token: DEMO_REGISTRATION_QR_TOKEN,
+      bdmUserId: bdmOne.id,
+    },
+  });
+
+  const sampleUrl = `http://localhost:3000/register/${DEMO_REGISTRATION_QR_TOKEN}`;
+  const samplePng = await QRCode.toBuffer(sampleUrl, { margin: 1, width: 320 });
+  const demoDir = path.join(process.cwd(), "public", "demo");
+  await mkdir(demoDir, { recursive: true });
+  await writeFile(path.join(demoDir, "sample-registration-qr.png"), samplePng);
 
   console.log("Seed completed successfully.");
 }

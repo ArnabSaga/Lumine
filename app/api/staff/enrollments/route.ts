@@ -5,7 +5,7 @@ import { getStaffEnrollments } from "@/lib/server/services/staff-enrollment.serv
 import { staffEnrollmentQuerySchema } from "@/lib/shared/validations/enrollment-query";
 
 export async function GET(req: Request) {
-  const { error } = await requireApiRole([UserRole.BDM, UserRole.ACCOUNTS]);
+  const { error } = await requireApiRole([UserRole.ACCOUNTS]);
   if (error) return error;
 
   const url = new URL(req.url);

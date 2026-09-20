@@ -3,9 +3,6 @@ import Link from "next/link";
 import { requirePageRole } from "@/lib/server/guards/auth";
 import { prisma } from "@/lib/server/db";
 import { UserRole } from "@/generated/prisma/client";
-import QrDisplay from "./QrDisplay";
-import EnrollmentActions from "./EnrollmentActions";
-import SelectedCourseEnrollment from "./SelectedCourseEnrollment";
 import { AppShell } from "@/components/ui/shells";
 import { EmptyState, GlassCard, PageHeader, StatusBadge } from "@/components/ui/primitives";
 import { getEnrollmentHistoryDescription, getEnrollmentHistoryLabel } from "@/lib/shared/enrollment-history";
@@ -37,7 +34,7 @@ export default async function StudentDashboard({
     );
   }
 
-  const [enrollments, availableCourses] = await Promise.all([
+  const [enrollments, admissions, availableCourses] = await Promise.all([
     prisma.enrollment.findMany({
       where: { studentId: student.id },
       // Deterministic tie-breaker: equal createdAt values order repeatably.
@@ -50,7 +47,6 @@ export default async function StudentDashboard({
         currencyAtEnrollment: true,
         createdAt: true,
         course: { select: { id: true, slug: true, name: true } },
-        qr: { select: { token: true } },
         payments: {
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1,
@@ -63,18 +59,32 @@ export default async function StudentDashboard({
         },
       },
     }),
+    prisma.admission.findMany({
+      where: { studentId: student.id },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        reference: true,
+        status: true,
+        admissionAmount: true,
+        paidAmount: true,
+        currency: true,
+        classStartingDate: true,
+        createdAt: true,
+        course: { select: { slug: true, name: true } },
+        statusHistory: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: { id: true, toStatus: true, createdAt: true },
+        },
+      },
+    }),
     prisma.course.findMany({
       where: { isActive: true },
       select: { id: true, slug: true, name: true, description: true, price: true, currency: true },
     }),
   ]);
 
-  // Check if courseHint is present and not yet enrolled
-  const enrolledCourseSlugs = new Set(enrollments.map((e) => e.course.slug));
   const enrolledCourseIds = new Set(enrollments.map((e) => e.course.id));
-  const selectedCourse = courseHint
-    ? availableCourses.find((c) => c.slug === courseHint && !enrolledCourseSlugs.has(c.slug))
-    : null;
 
   const unenrolledCourses = availableCourses.filter((c) => !enrolledCourseIds.has(c.id));
 
@@ -92,40 +102,99 @@ export default async function StudentDashboard({
           light
           eyebrow="Student portal"
           title="My dashboard"
-          description="Manage your enrollments, payment verification, QR code, and approved course access."
+          description="Track your BDM registration, Accounts approval, assigned course access, and module progress."
         />
 
-        {/* Selected Course Prompt (if navigated with ?course=...) */}
-        {selectedCourse && (
-          <SelectedCourseEnrollment
-            course={{
-              id: selectedCourse.id,
-              slug: selectedCourse.slug,
-              name: selectedCourse.name,
-              description: selectedCourse.description,
-              price: selectedCourse.price.toString(),
-              currency: selectedCourse.currency,
-            }}
-          />
+        {admissions.length > 0 && (
+          <div className="mb-8 flex flex-col gap-5">
+            {admissions.map((admission) => {
+              const isApproved = admission.status === "ASSIGNED_TO_TEACHER";
+              const journey = [
+                { label: "Registration Submitted", state: "done" },
+                {
+                  label: "BDM Admission Entry",
+                  state:
+                    admission.status === "PENDING_ACCOUNTS_APPROVAL" || admission.status === "ACCOUNTS_APPROVED" || isApproved
+                      ? "done"
+                      : "waiting",
+                },
+                {
+                  label: "Accounts Approval",
+                  state: admission.status === "ACCOUNTS_APPROVED" || isApproved ? "done" : "locked",
+                },
+                { label: "Course Access", state: isApproved ? "done" : "locked" },
+              ];
+
+              return (
+                <GlassCard key={admission.id}>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="lum-eyebrow">Admission</p>
+                      <h2 className="mt-2 font-display text-2xl font-black text-slate-950">
+                        {admission.course?.name ?? "Course pending"}
+                      </h2>
+                      <p className="mt-1 font-mono text-xs text-slate-500">REF: {admission.reference}</p>
+                    </div>
+                    <StatusBadge status={admission.status} />
+                  </div>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {journey.map((step) => (
+                      <div key={step.label} className="rounded-2xl border border-slate-200 bg-white/80 p-3">
+                        <p className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">{step.label}</p>
+                        <p
+                          className={`mt-2 text-sm font-black ${
+                            step.state === "done"
+                              ? "text-emerald-700"
+                              : step.state === "waiting"
+                              ? "text-amber-700"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          {step.state === "done" ? "Complete" : step.state === "waiting" ? "Waiting" : "Locked"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    <p className="text-sm text-slate-600">
+                      Admission Amount:{" "}
+                      <span className="font-mono font-black">
+                        {admission.admissionAmount ? `${admission.currency} ${admission.admissionAmount.toString()}` : "Pending"}
+                      </span>
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      Paid Amount:{" "}
+                      <span className="font-mono font-black">
+                        {admission.paidAmount ? `${admission.currency} ${admission.paidAmount.toString()}` : "Pending"}
+                      </span>
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      Class Start:{" "}
+                      <span className="font-mono font-black">
+                        {admission.classStartingDate ? admission.classStartingDate.toISOString().slice(0, 10) : "Pending"}
+                      </span>
+                    </p>
+                  </div>
+                </GlassCard>
+              );
+            })}
+          </div>
         )}
 
         {/* Enrollments */}
-        {enrollments.length === 0 && !selectedCourse ? (
+        {enrollments.length === 0 && admissions.length === 0 ? (
           <GlassCard className="mb-6">
             <EmptyState
-              title="No enrollments yet"
-              description="Browse the course catalog and confirm your first enrollment when you are ready."
-              action={<Link href="/courses" className="lum-btn-primary">Browse Courses</Link>}
+              title="No admission yet"
+              description="Scan or open the registration QR provided by your Luminedge BDM to start admission."
+              action={<Link href="/courses" className="lum-btn-primary">Explore Courses</Link>}
             />
           </GlassCard>
         ) : (
           <div className="mb-8 flex flex-col gap-5">
             {enrollments.map((enr) => {
-              const latestPayment = enr.payments[0];
               const isApproved = enr.status === "APPROVED";
               const isVerified = enr.status === "PAYMENT_VERIFIED";
-              const isPending = enr.status === "PENDING_PAYMENT";
-              const paymentPaid = latestPayment?.status === "SUCCEEDED";
               const journey = [
                 { label: "Enrollment Confirmed", state: "done" },
                 { label: "Payment Verified", state: isVerified || isApproved ? "done" : "waiting" },
@@ -152,10 +221,6 @@ export default async function StudentDashboard({
                       <p style={{ fontSize: "0.8rem", color: "#059669", marginBottom: "0.5rem" }}>
                         ✓ Assigned to: <strong>{enr.assignedTeacher.name}</strong>
                       </p>
-                    )}
-
-                    {isPending && !paymentPaid && (
-                      <EnrollmentActions enrollmentId={enr.id} latestPayment={latestPayment} />
                     )}
 
                     {isApproved && (
@@ -210,16 +275,6 @@ export default async function StudentDashboard({
                       )}
                     </div>
                   </div>
-
-                  {/* QR */}
-                  {(isVerified || isApproved) && enr.qr?.token && (
-                    <div className="rounded-3xl border border-slate-200 bg-white/75 p-4 text-center">
-                      <p style={{ fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#64748b", marginBottom: "0.5rem" }}>
-                        Verification QR
-                      </p>
-                      <QrDisplay token={enr.qr.token} />
-                    </div>
-                  )}
                 </GlassCard>
               );
             })}
@@ -242,7 +297,7 @@ export default async function StudentDashboard({
                     </p>
                   </div>
                   <Link href={`/courses/${course.slug}`} className="lum-btn-primary" style={{ fontSize: "0.75rem", padding: "0.4rem 0.875rem" }}>
-                    View →
+                    Explore →
                   </Link>
                 </GlassCard>
               ))}

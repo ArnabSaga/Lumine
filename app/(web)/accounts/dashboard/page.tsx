@@ -18,53 +18,53 @@ export default async function AccountsDashboardPage() {
       <PageHeader
         light
         eyebrow="Accounts portal"
-        title="Payment verification"
-        description="Review verified payments, scan student QR codes, and approve enrollments with the appropriate teacher assignment."
+        title="Admission approval"
+        description="Review BDM submitted Admissions, verify payment amounts, and approve learning access."
       />
 
       <div className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard metricId="awaiting-approval" label="Awaiting approval" value={dashboard.awaitingApproval} helper="Payment verified enrollments" tone="info" />
+        <StatCard metricId="awaiting-approval" label="Awaiting approval" value={dashboard.awaitingApproval} helper="BDM submitted Admissions" tone="info" />
         <StatCard metricId="approved-today" label="Approved today" value={dashboard.approvedToday} helper="Bangladesh business day" tone="warning" />
-        <StatCard metricId="total-approved" label="Total approved" value={dashboard.totalApproved} helper="Approved enrollments" tone="success" />
-        <StatCard metricId="verified-value" label="Verified value" value={paymentValue} helper="Succeeded payments" tone="neutral" />
+        <StatCard metricId="total-approved" label="Total approved" value={dashboard.totalApproved} helper="Accounts approved Admissions" tone="success" />
+        <StatCard metricId="verified-value" label="Manual value" value={paymentValue} helper="Manual admission payments" tone="neutral" />
       </div>
 
       <div className="mb-6">
         <CalloutCard
-          title="Verify a student enrollment"
-          description="Scan the student's QR code to validate payment, review the enrollment, and assign the correct teacher."
-          href="/staff/scan"
-          actionLabel="Open QR Scanner"
+          title="Review Admissions"
+          description="Open the Accounts queue to approve BDM submitted admissions and create learning access."
+          href="/accounts/admissions"
+          actionLabel="Open Admission Queue"
         />
       </div>
 
       <div className="mb-6">
         <SectionCard
           title="Operations workspace"
-          description="Search and filter all verification-safe enrollment records."
-          action={<StatusBadge status="PAYMENT_VERIFIED" />}
+          description="Search and filter payment-safe Admission records."
+          action={<StatusBadge status="PENDING_ACCOUNTS_APPROVAL" />}
         >
           <EmptyState
-            title="Use enrollment management"
-            description="Open the staff workspace to search by student, email, reference, course, status, or assigned teacher."
-            action={<Link href="/staff/enrollments" className="lum-btn-primary">Open enrollments</Link>}
+            title="Use Admission management"
+            description="Open the Accounts queue to search by student, email, reference, course, or status."
+            action={<Link href="/accounts/admissions" className="lum-btn-primary">Open Admissions</Link>}
           />
         </SectionCard>
       </div>
 
-      <SectionCard title="Recently approved" description="Completed approvals with assigned teachers.">
+      <SectionCard title="Recently approved" description="Completed Accounts approvals.">
         {dashboard.recentActivity.length === 0 ? (
           <EmptyState
             title="No approvals yet"
-            description="Use the scanner when a verified student is ready for approval."
-            action={<Link href="/staff/scan" className="lum-btn-primary">Open scanner</Link>}
+            description="Admissions you approve will appear here."
+            action={<Link href="/accounts/admissions" className="lum-btn-primary">Open Admissions</Link>}
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="lum-table">
               <thead>
                 <tr>
-                  {["Student", "Course", "Reference", "Teacher", "Approved by", "Date"].map((h) => (
+                  {["Student", "Course", "Reference", "Date"].map((h) => (
                     <th key={h}>{h}</th>
                   ))}
                 </tr>
@@ -78,8 +78,6 @@ export default async function AccountsDashboardPage() {
                     </td>
                     <td className="font-semibold text-slate-700">{activity.courseName}</td>
                     <td className="font-mono text-xs text-slate-600">{activity.reference}</td>
-                    <td>{activity.teacherName}</td>
-                    <td>{activity.approvedByName}</td>
                     <td className="text-sm text-slate-500">
                       {activity.approvedAt ? new Date(activity.approvedAt).toLocaleDateString("en-BD") : "Pending"}
                     </td>

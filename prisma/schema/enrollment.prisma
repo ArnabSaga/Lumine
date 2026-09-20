@@ -12,14 +12,15 @@ model Enrollment {
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 
-  student         Student                   @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  course          Course                    @relation(fields: [courseId], references: [id], onDelete: Restrict)
-  assignedTeacher User?                     @relation("EnrollmentTeacher", fields: [assignedTeacherId], references: [id], onDelete: Restrict)
-  approvedBy      User?                     @relation("EnrollmentApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  student         Student                    @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  course          Course                     @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  assignedTeacher User?                      @relation("EnrollmentTeacher", fields: [assignedTeacherId], references: [id], onDelete: Restrict)
+  approvedBy      User?                      @relation("EnrollmentApprover", fields: [approvedById], references: [id], onDelete: Restrict)
   payments        Payment[]
   qr              EnrollmentQr?
   statusHistory   EnrollmentStatusHistory[]
   moduleProgress  EnrollmentModuleProgress[]
+  admission       Admission?
 
   @@unique([studentId, courseId])
   @@index([studentId])

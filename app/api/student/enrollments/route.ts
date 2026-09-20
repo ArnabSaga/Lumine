@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { UserRole } from "@/generated/prisma/client";
 import { requireApiRole } from "@/lib/server/guards/auth";
 import { prisma } from "@/lib/server/db";
-import { createEnrollmentSchema } from "@/lib/shared/validations/enrollment";
-import { createEnrollment } from "@/lib/server/services/enrollment.service";
 
 // GET /api/student/enrollments — list own enrollments
 // POST /api/student/enrollments — create new enrollment
@@ -55,65 +53,9 @@ export async function GET() {
 export async function POST(req: Request) {
   const { error, session } = await requireApiRole([UserRole.STUDENT]);
   if (error || !session) return error;
-
-  // Student must have a profile
-  const student = await prisma.student.findUnique({
-    where: { userId: session.user.id },
-    select: { id: true },
-  });
-
-  if (!student) {
-    return NextResponse.json(
-      { error: "Student profile not found. Please complete your profile first." },
-      { status: 400 }
-    );
-  }
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
-  }
-
-  const parsed = createEnrollmentSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Validation failed.", details: parsed.error.flatten().fieldErrors },
-      { status: 400 }
-    );
-  }
-
-  // Duplicate enrollment check
-  const existing = await prisma.enrollment.findUnique({
-    where: { studentId_courseId: { studentId: student.id, courseId: parsed.data.courseId } },
-    select: { id: true, reference: true, status: true },
-  });
-
-  if (existing) {
-    return NextResponse.json(
-      { error: "You are already enrolled in this course.", enrollment: existing },
-      { status: 409 }
-    );
-  }
-
-  try {
-    const { enrollment } = await createEnrollment({
-      studentId: student.id,
-      courseId: parsed.data.courseId,
-    });
-
-    return NextResponse.json({ enrollment }, { status: 201 });
-  } catch (err: unknown) {
-    if (err instanceof Error && err.message === "Course not found or inactive.") {
-      return NextResponse.json({ error: "Course not found." }, { status: 404 });
-    }
-
-    if (err instanceof Error && err.message === "Failed to create enrollment after retries.") {
-      return NextResponse.json({ error: "Could not create enrollment. Please try again." }, { status: 409 });
-    }
-
-    console.error("[student/enrollments]", err);
-    return NextResponse.json({ error: "Failed to create enrollment." }, { status: 500 });
-  }
+  await req.text().catch(() => "");
+  return NextResponse.json(
+    { error: "Student self enrollment is retired. Registration starts from a BDM issued QR." },
+    { status: 410 }
+  );
 }

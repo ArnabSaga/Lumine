@@ -10,4 +10,5 @@ model Student {
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   enrollments Enrollment[]
+  admissions  Admission[]
 }

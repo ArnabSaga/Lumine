@@ -29,7 +29,7 @@ export default async function StaffEnrollmentDetailPage({
 }: {
   params: Promise<{ enrollmentId: string }>;
 }) {
-  const session = await requirePageRole([UserRole.BDM, UserRole.ACCOUNTS], "/staff/login");
+  const session = await requirePageRole([UserRole.ACCOUNTS], "/staff/login");
   const { enrollmentId } = await params;
   const enrollment = await getStaffEnrollmentDetail(enrollmentId);
 

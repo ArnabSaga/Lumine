@@ -1,6 +1,6 @@
 import "server-only";
 
-import { EnrollmentStatus, PaymentStatus, Prisma, UserRole } from "@/generated/prisma/client";
+import { AdmissionStatus, EnrollmentStatus, PaymentStatus, Prisma, UserRole } from "@/generated/prisma/client";
 import { prisma } from "@/lib/server/db";
 import { getBangladeshTodayRange, getBangladeshWeekRange } from "@/lib/shared/date-metrics";
 
@@ -47,46 +47,85 @@ export async function getRecentApprovalActivity(limit = 5): Promise<RecentApprov
 export async function getBdmDashboardData(userId: string) {
   const today = getBangladeshTodayRange();
 
-  const [approvedByMe, awaitingApproval, approvedToday, totalVerified, recentActivity] = await Promise.all([
-    prisma.enrollment.count({
-      where: { status: EnrollmentStatus.APPROVED, approvedById: userId },
+  const [registered, awaitingAccounts, assigned, submittedToday, recentActivity] = await Promise.all([
+    prisma.admission.count({
+      where: { bdmUserId: userId, status: AdmissionStatus.REGISTERED },
     }),
-    prisma.enrollment.count({ where: { status: EnrollmentStatus.PAYMENT_VERIFIED } }),
-    prisma.enrollment.count({
+    prisma.admission.count({
+      where: { bdmUserId: userId, status: AdmissionStatus.PENDING_ACCOUNTS_APPROVAL },
+    }),
+    prisma.admission.count({
+      where: { bdmUserId: userId, status: AdmissionStatus.ASSIGNED_TO_TEACHER },
+    }),
+    prisma.admission.count({
       where: {
-        status: EnrollmentStatus.APPROVED,
-        approvedById: userId,
-        approvedAt: { gte: today.start, lt: today.end },
+        bdmUserId: userId,
+        status: AdmissionStatus.PENDING_ACCOUNTS_APPROVAL,
+        submittedAt: { gte: today.start, lt: today.end },
       },
     }),
-    prisma.enrollment.count({
-      where: { status: { in: [EnrollmentStatus.PAYMENT_VERIFIED, EnrollmentStatus.APPROVED] } },
+    prisma.admission.findMany({
+      where: { bdmUserId: userId },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: 5,
+      select: {
+        id: true,
+        reference: true,
+        status: true,
+        updatedAt: true,
+        student: { select: { user: { select: { name: true, email: true } } } },
+        course: { select: { name: true } },
+      },
     }),
-    getRecentApprovalActivity(5),
   ]);
 
-  return { approvedByMe, awaitingApproval, approvedToday, totalVerified, recentActivity };
+  return {
+    registered,
+    awaitingAccounts,
+    assigned,
+    submittedToday,
+    recentActivity: recentActivity.map((item) => ({
+      id: item.id,
+      reference: item.reference,
+      status: item.status,
+      updatedAt: item.updatedAt.toISOString(),
+      studentName: item.student.user.name,
+      studentEmail: item.student.user.email,
+      courseName: item.course?.name ?? "Not selected",
+    })),
+  };
 }
 
 export async function getAccountsDashboardData() {
   const today = getBangladeshTodayRange();
 
   const [awaitingApproval, approvedToday, totalApproved, paymentGroups, recentActivity] = await Promise.all([
-    prisma.enrollment.count({ where: { status: EnrollmentStatus.PAYMENT_VERIFIED } }),
-    prisma.enrollment.count({
+    prisma.admission.count({ where: { status: AdmissionStatus.PENDING_ACCOUNTS_APPROVAL } }),
+    prisma.admission.count({
       where: {
-        status: EnrollmentStatus.APPROVED,
-        approvedBy: { role: { in: [UserRole.BDM, UserRole.ACCOUNTS] } },
-        approvedAt: { gte: today.start, lt: today.end },
+        status: AdmissionStatus.ASSIGNED_TO_TEACHER,
+        accountsApprovedBy: { role: UserRole.ACCOUNTS },
+        accountsApprovedAt: { gte: today.start, lt: today.end },
       },
     }),
-    prisma.enrollment.count({ where: { status: EnrollmentStatus.APPROVED } }),
+    prisma.admission.count({ where: { status: AdmissionStatus.ASSIGNED_TO_TEACHER } }),
     prisma.payment.groupBy({
       by: ["currency"],
-      where: { status: PaymentStatus.SUCCEEDED },
+      where: { status: PaymentStatus.SUCCEEDED, provider: "MANUAL_ADMISSION" },
       _sum: { amount: true },
     }),
-    getRecentApprovalActivity(5),
+    prisma.admission.findMany({
+      where: { status: AdmissionStatus.ASSIGNED_TO_TEACHER },
+      orderBy: [{ accountsApprovedAt: "desc" }, { id: "desc" }],
+      take: 5,
+      select: {
+        id: true,
+        reference: true,
+        accountsApprovedAt: true,
+        student: { select: { user: { select: { name: true, email: true } } } },
+        course: { select: { name: true } },
+      },
+    }),
   ]);
 
   const verifiedPaymentValues = paymentGroups.map((group) => ({
@@ -94,7 +133,20 @@ export async function getAccountsDashboardData() {
     amount: (group._sum.amount ?? new Prisma.Decimal(0)).toString(),
   }));
 
-  return { awaitingApproval, approvedToday, totalApproved, verifiedPaymentValues, recentActivity };
+  return {
+    awaitingApproval,
+    approvedToday,
+    totalApproved,
+    verifiedPaymentValues,
+    recentActivity: recentActivity.map((item) => ({
+      id: item.id,
+      reference: item.reference,
+      approvedAt: item.accountsApprovedAt ? item.accountsApprovedAt.toISOString() : null,
+      studentName: item.student.user.name,
+      studentEmail: item.student.user.email,
+      courseName: item.course?.name ?? "Not selected",
+    })),
+  };
 }
 
 export async function getTeacherDashboardMetrics(teacherId: string) {

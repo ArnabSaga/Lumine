@@ -4,7 +4,7 @@ import { requireApiRole } from "@/lib/server/guards/auth";
 import { getStaffEnrollmentDetail } from "@/lib/server/services/staff-enrollment.service";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = await requireApiRole([UserRole.BDM, UserRole.ACCOUNTS]);
+  const { error } = await requireApiRole([UserRole.ACCOUNTS]);
   if (error) return error;
 
   const { id } = await params;

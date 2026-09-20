@@ -8,7 +8,7 @@ import { scanQrSchema } from "@/lib/shared/validations/enrollment";
 // Accessible by BDM and ACCOUNTS only
 
 export async function POST(req: Request) {
-  const { error } = await requireApiRole([UserRole.BDM, UserRole.ACCOUNTS]);
+  const { error } = await requireApiRole([UserRole.ACCOUNTS]);
   if (error) return error;
 
   let body: unknown;
